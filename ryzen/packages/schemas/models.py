@@ -42,7 +42,7 @@ class MemoryEntry(Base):
     brain_id = Column(String, ForeignKey("brains.id"), nullable=True)
     memory_type = Column(String, nullable=False)  # strategic, operational, creator, etc.
     content = Column(Text, nullable=False)
-    embedding = Column(Vector(1536))  # Adjust dimension as needed
+    embedding = Column(JSON)  # Use JSON for SQLite compatibility in MVP/Testing
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
     arc = relationship("ARC", back_populates="memory_entries")

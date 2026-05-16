@@ -5,6 +5,7 @@ from ryzen.apps.governance.middleware import GovernanceMiddleware
 from ryzen.apps.arc_factory.factory import ARCFactory
 from ryzen.apps.fleet_arc.orchestrator import FleetARC
 from ryzen.packages.schemas.models import Base
+from ryzen.packages.shared.logging import setup_logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
@@ -14,6 +15,9 @@ engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base.metadata.create_all(bind=engine)
+
+# Initialize global structured logging
+setup_logging()
 
 app = FastAPI(title="Ryzen Kernel API")
 
@@ -80,6 +84,19 @@ async def initialize_fleet(creator_id: str, db: Session = Depends(get_db)):
     fleet = FleetARC(db)
     arc = fleet.initialize(creator_id=creator_id)
     return {"status": "initialized", "arc_id": arc.id, "brain_count": len(arc.brains)}
+
+@app.post("/fleet/execute")
+async def execute_fleet_task(action: str, payload: Dict[str, Any], db: Session = Depends(get_db)):
+    # Simple lookup for Fleet ARC Operational in MVP
+    from ryzen.packages.schemas.models import ARC
+    arc_record = db.query(ARC).filter(ARC.name == "Fleet ARC Operational").first()
+    if not arc_record:
+        raise HTTPException(status_code=404, detail="Fleet ARC not initialized. Call /fleet/initialize first.")
+
+    fleet = FleetARC(db)
+    fleet.arc_record = arc_record
+    result = await fleet.execute_task(action, payload)
+    return result
 
 if __name__ == "__main__":
     import uvicorn

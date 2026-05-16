@@ -12,7 +12,7 @@ def test_health_check():
 def test_execute_action_authorized():
     payload = {
         "type": "task_execution",
-        "payload": {"task": "test"},
+        "payload": {"task": "test", "task_id": "task-123"},
         "recursion_depth": 0
     }
     response = client.post("/kernel/execute", json=payload)
@@ -27,14 +27,24 @@ def test_execute_action_forbidden_scope():
     }
     response = client.post("/kernel/execute", json=payload)
     assert response.status_code == 403
-    assert "not in allowed scope" in response.json()["detail"]
+    assert "outside of authorized domain" in response.json()["detail"]
 
 def test_execute_action_max_recursion():
     payload = {
         "type": "task_execution",
-        "payload": {},
+        "payload": {"task_id": "task-123"},
         "recursion_depth": 10
     }
     response = client.post("/kernel/execute", json=payload)
     assert response.status_code == 403
     assert "Max recursion depth exceeded" in response.json()["detail"]
+
+def test_execute_action_missing_task_id():
+    payload = {
+        "type": "task_execution",
+        "payload": {"task": "test"},
+        "recursion_depth": 0
+    }
+    response = client.post("/kernel/execute", json=payload)
+    assert response.status_code == 403
+    assert "requires valid task_id" in response.json()["detail"]

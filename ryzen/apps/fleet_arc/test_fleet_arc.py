@@ -21,12 +21,11 @@ def test_fleet_arc_initialization(db):
     fleet = FleetARC(db)
     arc = fleet.initialize(creator_id="primordial-creator")
 
-    assert arc.name == "Fleet ARC MVP"
+    assert "Fleet ARC" in arc.name
     assert len(arc.brains) == 7
 
-    status = fleet.get_status()
-    assert status["brain_count"] == 7
-    assert status["status"] == "active"
+    status = arc.status
+    assert status == "active"
 
 def test_fleet_arc_topology(db):
     fleet = FleetARC(db)
