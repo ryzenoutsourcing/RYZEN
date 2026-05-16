@@ -43,10 +43,27 @@ class MemoryFederationLayer:
         return entry
 
     def retrieve_by_layer(self, arc_id: str, memory_type: str, limit: int = 10) -> List[MemoryEntry]:
+        """
+        Context-aware retrieval for specific memory layers.
+        """
         return self.db.query(MemoryEntry).filter(
             MemoryEntry.arc_id == arc_id,
             MemoryEntry.memory_type == memory_type
         ).order_by(MemoryEntry.timestamp.desc()).limit(limit).all()
+
+    def get_continuity_context(self, arc_id: str) -> Dict[str, Any]:
+        """
+        Retrieves stratified context for operational continuity.
+        """
+        strategic = self.retrieve_by_layer(arc_id, "strategic", limit=5)
+        governance = self.retrieve_by_layer(arc_id, "governance", limit=5)
+        operational = self.retrieve_recent(arc_id, limit=10)
+
+        return {
+            "strategic": [m.content for m in strategic],
+            "governance": [m.content for m in governance],
+            "operational": [m.content for m in operational]
+        }
 
     def retrieve_recent(self, arc_id: str, limit: int = 10) -> List[MemoryEntry]:
         return self.db.query(MemoryEntry).filter(MemoryEntry.arc_id == arc_id).order_by(MemoryEntry.timestamp.desc()).limit(limit).all()

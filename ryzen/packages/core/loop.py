@@ -23,6 +23,15 @@ class CognitionLoop:
         self.memory = memory
         self.verification_engine = verification_engine
 
+    async def run_delegated(self, target_role: str, request: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Supports inter-brain coordination by running a delegated task.
+        """
+        # In a real implementation, this would recurse back through the loop with a new task.
+        # For MVP, we provide a simplified delegation execution.
+        logger.info(f"Executing delegated task for role: {target_role}", extra={"request": request})
+        return {"status": "delegated_completed", "role": target_role, "output": f"Delegated result for {target_role}"}
+
     async def run(
         self,
         arc_id: str,
@@ -37,7 +46,8 @@ class CognitionLoop:
         gov_check = self.governance.validate_action({
             "type": "brain_execution",
             "payload": input_data,
-            "arc_id": arc_id
+            "arc_id": arc_id,
+            "trace_id": trace_id
         })
         if not gov_check["valid"]:
             logger.error(f"Governance block: {gov_check['reason']}", extra={"trace_id": trace_id})
@@ -50,7 +60,8 @@ class CognitionLoop:
         context = {
             "strategic": [m.content for m in strategic_context],
             "operational": [m.content for m in operational_context],
-            "trace_id": trace_id
+            "trace_id": trace_id,
+            "loop": self # Allow brains to coordinate via this loop
         }
 
         # 3. Recursive Verification Cycle (Orchestration → Brain Execution → Verification)

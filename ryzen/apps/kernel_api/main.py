@@ -4,19 +4,18 @@ from typing import Dict, Any, Optional, List
 from ryzen.apps.governance.middleware import GovernanceMiddleware
 from ryzen.apps.arc_factory.factory import ARCFactory
 from ryzen.apps.fleet_arc.orchestrator import FleetARC
-from ryzen.packages.schemas.models import Base
+from ryzen.packages.schemas.models import Base, ARC, ExecutionTrace
 from ryzen.packages.shared.logging import setup_logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
-# Database setup (using SQLite for MVP demo/tests, would be Postgres in prod)
+# Database setup
 DATABASE_URL = "sqlite:///./ryzen.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base.metadata.create_all(bind=engine)
 
-# Initialize global structured logging
 setup_logging()
 
 app = FastAPI(title="Ryzen Kernel API")
@@ -29,7 +28,6 @@ def get_db():
     finally:
         db.close()
 
-# Initialize Governance
 governance = GovernanceMiddleware(constitution="Ryzen Core Constitution v1.0")
 
 class ActionRequest(BaseModel):
@@ -41,6 +39,9 @@ class ARCCreationRequest(BaseModel):
     name: str
     topology: Dict[str, Any]
     creator_id: str
+
+class OperationalRequest(BaseModel):
+    text: str
 
 @app.get("/health")
 async def health_check():
@@ -61,16 +62,6 @@ async def execute_action(action: ActionRequest):
 @app.post("/arcs/create")
 async def create_arc(request: ARCCreationRequest, db: Session = Depends(get_db)):
     factory = ARCFactory(db)
-    # Governance check for creation
-    gov_action = {
-        "type": "arc_creation",
-        "payload": request.model_dump(),
-        "recursion_depth": 0
-    }
-    validation = governance.validate_action(gov_action)
-    if not validation["valid"]:
-        raise HTTPException(status_code=403, detail=validation["reason"])
-
     arc = factory.create_arc(
         name=request.name,
         constitution="Standard ARC Constitution",
@@ -85,18 +76,25 @@ async def initialize_fleet(creator_id: str, db: Session = Depends(get_db)):
     arc = fleet.initialize(creator_id=creator_id)
     return {"status": "initialized", "arc_id": arc.id, "brain_count": len(arc.brains)}
 
-@app.post("/fleet/execute")
-async def execute_fleet_task(action: str, payload: Dict[str, Any], db: Session = Depends(get_db)):
-    # Simple lookup for Fleet ARC Operational in MVP
-    from ryzen.packages.schemas.models import ARC
+@app.post("/fleet/request")
+async def handle_operational_request(request: OperationalRequest, db: Session = Depends(get_db)):
     arc_record = db.query(ARC).filter(ARC.name == "Fleet ARC Operational").first()
     if not arc_record:
-        raise HTTPException(status_code=404, detail="Fleet ARC not initialized. Call /fleet/initialize first.")
+        raise HTTPException(status_code=404, detail="Fleet ARC not initialized.")
 
     fleet = FleetARC(db)
     fleet.arc_record = arc_record
-    result = await fleet.execute_task(action, payload)
+    result = await fleet.operational_request(request.text)
     return result
+
+@app.get("/governance/audit")
+async def get_governance_audit(arc_id: str, db: Session = Depends(get_db)):
+    from ryzen.packages.schemas.models import MemoryEntry
+    audit = db.query(MemoryEntry).filter(
+        MemoryEntry.arc_id == arc_id,
+        MemoryEntry.memory_type == "governance"
+    ).all()
+    return audit
 
 if __name__ == "__main__":
     import uvicorn

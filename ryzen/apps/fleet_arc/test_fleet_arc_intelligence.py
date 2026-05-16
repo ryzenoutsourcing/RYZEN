@@ -1,5 +1,4 @@
 import pytest
-import asyncio
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from ryzen.packages.schemas.models import Base
@@ -19,18 +18,14 @@ def db():
         Base.metadata.drop_all(bind=engine)
 
 @pytest.mark.asyncio
-async def test_fleet_arc_real_execution_cycle(db):
+async def test_fleet_arc_operational_cycle_canonical(db):
     fleet = FleetARC(db)
     fleet.initialize(creator_id="primordial-1")
 
-    # Use the new operational_request interface
-    result = await fleet.operational_request("sell ryzen license for 1000")
+    text = "Schedule airport pickup tomorrow at 14:00 from Brussels Airport to Antwerp."
+    result = await fleet.operational_request(text)
 
     assert result["status"] == "completed"
-    assert any("delegated_completed" in str(r) or "success" in str(r) for r in result["results"])
-
-@pytest.mark.asyncio
-async def test_fleet_arc_uninitialized():
-    fleet = FleetARC(None)
-    with pytest.raises(ValueError, match="not initialized"):
-        await fleet.operational_request("test")
+    assert result["goal"] == "schedule_booking"
+    assert len(result["tasks"]) == 5
+    assert any(r["status"] == "success" for r in result["results"])

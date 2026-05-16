@@ -23,6 +23,19 @@ class BaseBrain(ABC):
         """
         pass
 
+    async def coordinate(self, target_role: str, request: Dict[str, Any], loop: Any) -> Dict[str, Any]:
+        """
+        Explicit, traceable collaboration between brains.
+        Requires the global cognition loop for orchestration.
+        """
+        logger.info(f"Brain {self.name} requesting coordination from role: {target_role}", extra={
+            "brain_id": self.brain_id,
+            "target_role": target_role,
+            "request": request
+        })
+        # Delegation logic implemented via the loop (passed as 'loop')
+        return await loop.run_delegated(target_role, request)
+
 class GenericBrain(BaseBrain):
     """
     A concrete brain implementation for general tasks.
