@@ -6,6 +6,10 @@ from ryzen.packages.core.task_graph import TaskGraphEngine, TaskState
 from ryzen.packages.verification.engine import RecursiveVerificationEngine
 from ryzen.apps.governance.middleware import GovernanceMiddleware
 from ryzen.apps.memory.federation import MemoryFederationLayer
+from ryzen.packages.core.booking_engine import BookingExecutionEngine
+from ryzen.packages.core.scheduling import SchedulingEngine
+from ryzen.packages.core.notifications import NotificationEngine
+from ryzen.packages.core.adapters import CalendarAdapter, MessagingAdapter, CRMAdapter
 from ryzen.packages.brains.base import GenericBrain
 from sqlalchemy.orm import Session
 import logging
@@ -14,10 +18,10 @@ logger = logging.getLogger(__name__)
 
 class FleetARC:
     """
-    Fleet ARC: Phase 2 Operational Intelligence Layer.
+    Fleet ARC: Phase 3.1 Real Execution Infrastructure Layer.
     """
 
-    CONSTITUTION = "FLEET ARC CONSTITUTION: Preserve continuity, unified awareness, recursive verification."
+    CONSTITUTION = "FLEET ARC CONSTITUTION: Preserve continuity, unified awareness, recursive verification, operational reliability."
 
     TOPOLOGY = {
         "brains": [
@@ -40,6 +44,17 @@ class FleetARC:
         self.intent_parser = IntentParser()
         self.task_engine = TaskGraphEngine()
         self.cognition_loop = CognitionLoop(self.governance, self.memory, self.verification_engine)
+
+        # Real Execution Engines
+        self.booking_engine = BookingExecutionEngine(db_session)
+        self.scheduling_engine = SchedulingEngine(db_session)
+        self.notification_engine = NotificationEngine(db_session)
+
+        # Adapters
+        self.calendar = CalendarAdapter()
+        self.messaging = MessagingAdapter()
+        self.crm = CRMAdapter()
+
         self.arc_record = None
 
     def initialize(self, creator_id: str):
@@ -52,28 +67,26 @@ class FleetARC:
         return self.arc_record
 
     async def operational_request(self, text: str) -> Dict[str, Any]:
-        """
-        Universal Execution Flow:
-        Input -> Intent Parsing -> Task Decomposition -> Execution
-        """
         if not self.arc_record:
             raise ValueError("Fleet ARC not initialized")
 
         # 1. Intent Parsing
         intent_obj = self.intent_parser.parse(text)
-        logger.info(f"Structured Intent: {intent_obj.intent}")
 
         # 2. Task Decomposition
         graph = self.task_engine.decompose(intent_obj.intent, intent_obj.payload)
-        logger.info(f"Task Graph created with {len(graph.nodes)} nodes")
 
-        # 3. Execution (Sequential for MVP)
+        # 3. Execution with Real Engines
         results = []
         for node in graph.nodes.values():
             self.task_engine.update_state(node, TaskState.EXECUTING)
 
-            # Use Cognition Loop for each node execution
+            # Use Cognition Loop for each node
             execution_result = await self.execute_node(node)
+
+            # Post-execution operational logic (simplified for MVP)
+            if intent_obj.intent == "schedule_booking":
+                await self.handle_booking_logic(node, execution_result)
 
             node.result = execution_result
             self.task_engine.update_state(node, TaskState.COMPLETED if execution_result["status"] == "success" else TaskState.FAILED)
@@ -101,3 +114,34 @@ class FleetARC:
             orchestrator_fn=orchestrator_fn,
             brain_selector_fn=brain_selector_fn
         )
+
+    async def handle_booking_logic(self, node: Any, result: Dict[str, Any]):
+        """
+        Governed tool execution via the Cognition Loop.
+        """
+        if node.name == "Execute Booking" and result["status"] == "success":
+            # 1. Governed Notification
+            async def notify_orchestrator(inp, ctx):
+                self.notification_engine.send_customer_notification(
+                    self.arc_record.id, "cust-1", "booking_confirmed", {"details": inp}
+                )
+                return {"adapter_result": {"status": "notified"}}
+
+            await self.cognition_loop.run(
+                arc_id=self.arc_record.id,
+                input_data=node.input_data,
+                orchestrator_fn=notify_orchestrator,
+                is_adapter_call=True
+            )
+
+            # 2. Governed CRM Update
+            async def crm_orchestrator(inp, ctx):
+                res = await self.crm.execute("update_history", {"action": "booking_created", "data": inp})
+                return {"adapter_result": res}
+
+            await self.cognition_loop.run(
+                arc_id=self.arc_record.id,
+                input_data=node.input_data,
+                orchestrator_fn=crm_orchestrator,
+                is_adapter_call=True
+            )

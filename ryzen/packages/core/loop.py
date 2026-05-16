@@ -37,7 +37,8 @@ class CognitionLoop:
         arc_id: str,
         input_data: Dict[str, Any],
         orchestrator_fn: Callable,
-        brain_selector_fn: Callable
+        brain_selector_fn: Optional[Callable] = None,
+        is_adapter_call: bool = False
     ) -> Dict[str, Any]:
         trace_id = str(uuid.uuid4())
         logger.info(f"Starting cognition loop for ARC {arc_id}", extra={"trace_id": trace_id, "arc_id": arc_id})
@@ -80,8 +81,12 @@ class CognitionLoop:
             return {"valid": True, "validated_plan": plan}
 
         async def execution_step(validation):
-            # Brain Execution
             plan = validation["validated_plan"]
+            if is_adapter_call:
+                # Direct adapter execution if flagged (orchestrator_fn returns adapter result)
+                return plan["adapter_result"]
+
+            # Brain Execution
             selected_brain = await brain_selector_fn(plan)
             return await selected_brain.execute(plan["task_input"], context)
 

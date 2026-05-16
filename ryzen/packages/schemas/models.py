@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, JSON, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, JSON, DateTime, ForeignKey, Text, Boolean
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
 
@@ -61,8 +61,6 @@ class Task(Base):
 
     arc = relationship("ARC", back_populates="tasks")
 
-# --- PHASE 2 OPERATIONAL PERSISTENCE ---
-
 class Customer(Base):
     __tablename__ = "customers"
     id = Column(String, primary_key=True)
@@ -77,7 +75,7 @@ class Booking(Base):
     customer_id = Column(String, ForeignKey("customers.id"), nullable=False)
     arc_id = Column(String, ForeignKey("arcs.id"), nullable=False)
     details = Column(JSON, nullable=False)
-    status = Column(String, default="pending")
+    status = Column(String, default="REQUESTED") # Lifecycle: REQUESTED -> VALIDATED -> PRICED -> SCHEDULED -> CONFIRMED -> ACTIVE -> COMPLETED -> ARCHIVED
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -91,4 +89,43 @@ class ExecutionTrace(Base):
     input_data = Column(JSON)
     output_data = Column(JSON)
     state_transition = Column(String)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+# --- PHASE 3.1 REAL EXECUTION INFRASTRUCTURE ---
+
+class Driver(Base):
+    __tablename__ = "drivers"
+    id = Column(String, primary_key=True)
+    name = Column(String, nullable=False)
+    status = Column(String, default="available") # available, busy, off-duty
+    current_location = Column(String)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class Vehicle(Base):
+    __tablename__ = "vehicles"
+    id = Column(String, primary_key=True)
+    make = Column(String, nullable=False)
+    model = Column(String, nullable=False)
+    license_plate = Column(String, unique=True, nullable=False)
+    status = Column(String, default="available") # available, maintenance, busy
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class Schedule(Base):
+    __tablename__ = "schedules"
+    id = Column(String, primary_key=True)
+    booking_id = Column(String, ForeignKey("bookings.id"), nullable=False)
+    driver_id = Column(String, ForeignKey("drivers.id"), nullable=False)
+    vehicle_id = Column(String, ForeignKey("vehicles.id"), nullable=False)
+    start_time = Column(DateTime(timezone=True), nullable=False)
+    end_time = Column(DateTime(timezone=True), nullable=False)
+    status = Column(String, default="scheduled") # scheduled, active, completed, cancelled
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class OperationalEvent(Base):
+    __tablename__ = "operational_events"
+    id = Column(String, primary_key=True)
+    arc_id = Column(String, ForeignKey("arcs.id"), nullable=False)
+    event_type = Column(String, nullable=False) # state_transition, assignment, notification, failure
+    target_id = Column(String) # booking_id, schedule_id, etc.
+    details = Column(JSON)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())

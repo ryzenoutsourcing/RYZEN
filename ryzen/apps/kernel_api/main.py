@@ -4,7 +4,7 @@ from typing import Dict, Any, Optional, List
 from ryzen.apps.governance.middleware import GovernanceMiddleware
 from ryzen.apps.arc_factory.factory import ARCFactory
 from ryzen.apps.fleet_arc.orchestrator import FleetARC
-from ryzen.packages.schemas.models import Base, ARC, ExecutionTrace
+from ryzen.packages.schemas.models import Base, ARC, Booking, Schedule, MemoryEntry
 from ryzen.packages.shared.logging import setup_logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
@@ -87,9 +87,27 @@ async def handle_operational_request(request: OperationalRequest, db: Session = 
     result = await fleet.operational_request(request.text)
     return result
 
+# --- PHASE 3.1 EXPANDED ENDPOINTS ---
+
+@app.get("/bookings")
+async def list_bookings(db: Session = Depends(get_db)):
+    return db.query(Booking).all()
+
+@app.get("/bookings/{booking_id}/lifecycle")
+async def get_booking_lifecycle(booking_id: str, db: Session = Depends(get_db)):
+    from ryzen.packages.schemas.models import OperationalEvent
+    events = db.query(OperationalEvent).filter(
+        OperationalEvent.target_id == booking_id,
+        OperationalEvent.event_type == "state_transition"
+    ).order_by(OperationalEvent.timestamp.asc()).all()
+    return events
+
+@app.get("/schedules")
+async def list_schedules(db: Session = Depends(get_db)):
+    return db.query(Schedule).all()
+
 @app.get("/governance/audit")
 async def get_governance_audit(arc_id: str, db: Session = Depends(get_db)):
-    from ryzen.packages.schemas.models import MemoryEntry
     audit = db.query(MemoryEntry).filter(
         MemoryEntry.arc_id == arc_id,
         MemoryEntry.memory_type == "governance"

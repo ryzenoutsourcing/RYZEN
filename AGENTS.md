@@ -29,3 +29,13 @@ When working on Ryzen, adhere to these non-negotiable principles:
 6. **Tool Execution Layer**: Governed adapters for real-world actions.
 7. **Enhanced Memory**: Context-aware retrieval with relevance ranking.
 8. **Observability**: Execution graphs, state transitions, and coordination lineage tracing.
+
+## Phase 3.1: Real Execution Infrastructure Layer
+1. **Real Booking Execution**: Managed lifecycle (REQUESTED -> ARCHIVED) with persistent transitions.
+2. **Scheduling Engine**: Driver assignment, vehicle allocation, and conflict detection logic.
+3. **Notification Engine**: Customer and internal operational alerts.
+4. **Execution Adapters**: Governed connectors for Calendar, Messaging, and CRM.
+5. **Persistence Expansion**: Drivers, Vehicles, Schedules, and Operational Events.
+6. **Human Oversight**: Manual approval flows and workflow inspection.
+7. **Resilience**: Retry policies, graceful failure, and rollback infrastructure.
+8. **Observability**: Real operational lineage tracking (timing, state transitions, adapter traces).
