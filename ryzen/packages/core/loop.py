@@ -8,13 +8,17 @@ from ryzen.packages.governance.authorization import ActionAuthorizer
 from ryzen.packages.governance.risk import RiskClassifier, RiskLevel
 from ryzen.packages.governance.constraints import ExecutionConstraints
 from ryzen.packages.observability.governance_events import GovernanceEvents
+from ryzen.packages.core.dependencies import DependencyResolver
+from ryzen.packages.core.prioritization import PriorityEngine
+from ryzen.packages.core.continuity import ContinuityStateEngine
+from ryzen.packages.governance.conflicts import ContinuityConflictDetector
 
 logger = logging.getLogger(__name__)
 
 class CognitionLoop:
     """
-    The Hardened Global Cognition Loop:
-    Intent -> Governance -> Verification -> Orchestration -> Execution -> Persistence -> Observability
+    The Fully Hardened Strategic Cognition Loop:
+    Intent -> Governance -> Verification -> Dependency Resolution -> Prioritization -> Orchestration -> Execution -> Persistence -> Continuity Update -> Observability
     """
 
     def __init__(
@@ -27,10 +31,14 @@ class CognitionLoop:
         self.memory = memory
         self.verification_engine = verification_engine
 
-        # Hardening Components
+        # Hardening & Continuity Components
         self.authorizer = ActionAuthorizer()
         self.risk_classifier = RiskClassifier()
         self.constraints = ExecutionConstraints()
+        self.dependency_resolver = DependencyResolver()
+        self.priority_engine = PriorityEngine()
+        self.continuity_engine = ContinuityStateEngine()
+        self.conflict_detector = ContinuityConflictDetector()
 
     async def run_delegated(self, target_role: str, request: Dict[str, Any]) -> Dict[str, Any]:
         logger.info(f"Executing delegated task for role: {target_role}", extra={"request": request})
@@ -48,38 +56,23 @@ class CognitionLoop:
         trace_id = str(uuid.uuid4())
         workflow_id = input_data.get("workflow_id", trace_id)
 
-        # Use name if action is missing (for TaskNodes)
-        action_type = input_data.get("action") or input_data.get("name", "unknown_action")
+        # Initial action_type normalization (moved declaration to avoid SyntaxError)
+        def normalize_action(data):
+            act = data.get("action")
+            if not act:
+                name = data.get("name")
+                if not name and hasattr(data, "name"): name = data.name
+                act = (name or "unknown_action").replace(" ", "_").lower()
+                mapping = {"validate_request": "validate_request", "check_availability": "check_availability",
+                           "generate_pricing": "generate_pricing", "validate_continuity": "validate_continuity",
+                           "execute_booking": "execute_booking"}
+                act = mapping.get(act, act)
+            return act
 
-        # Normalize task names to permission keys
-        action_type = input_data.get("action")
+        current_action = normalize_action(input_data)
 
-        # If action_type is missing, look deeper into orchestrator-returned fields
-        if not action_type:
-             # Try common task metadata locations
-             name = input_data.get("name")
-             if not name and hasattr(input_data, "name"):
-                  name = input_data.name
-
-             action_type = (name or "unknown_action").replace(" ", "_").lower()
-
-             # Map specific known task names to authorized actions if needed
-             mapping = {
-                 "validate_request": "validate_request",
-                 "check_availability": "check_availability",
-                 "generate_pricing": "generate_pricing",
-                 "validate_continuity": "validate_continuity",
-                 "execute_booking": "execute_booking"
-             }
-             action_type = mapping.get(action_type, action_type)
-        else:
-             action_type = input_data["action"]
-
-        logger.info(f"Starting hardened cognition loop for ARC {arc_id}", extra={
-            "trace_id": trace_id,
-            "arc_id": arc_id,
-            "workflow_id": workflow_id,
-            "action": action_type
+        logger.info(f"Starting strategic cognition loop for ARC {arc_id}", extra={
+            "trace_id": trace_id, "arc_id": arc_id, "workflow_id": workflow_id, "action": current_action
         })
 
         # 1. EXECUTION CONSTRAINTS
@@ -93,45 +86,51 @@ class CognitionLoop:
              GovernanceEvents.log_constraint_violation("duplicate_prevention", duplicate_check["reason"])
              return {"status": "governance_blocked", "reason": duplicate_check["reason"]}
 
-
-        # 3. RISK CLASSIFICATION
-        risk_level = self.risk_classifier.classify(action_type)
+        # 2. RISK CLASSIFICATION
+        risk_level = self.risk_classifier.classify(current_action)
         escalation = self.risk_classifier.get_escalation_rules(risk_level)
+        GovernanceEvents.log_risk_escalation(current_action, risk_level, "strategic_audit", {"workflow_id": workflow_id})
 
-        GovernanceEvents.log_risk_escalation(action_type, risk_level, "standard_audit", {"workflow_id": workflow_id})
+        # 3. CONTINUITY CONFLICT DETECTION
+        conflict_check = self.conflict_detector.detect_resource_collisions(arc_id, current_action, input_data)
+        if conflict_check.get("conflict"):
+             return {"status": "governance_blocked", "reason": conflict_check["reason"]}
 
         # 4. GOVERNANCE VALIDATION (Baseline)
         gov_check = self.governance.validate_action({
-            "type": "brain_execution",
-            "payload": input_data,
-            "arc_id": arc_id,
-            "trace_id": trace_id,
-            "risk_level": risk_level
+            "type": "brain_execution", "payload": input_data, "arc_id": arc_id, "trace_id": trace_id, "risk_level": risk_level
         })
         if not gov_check["valid"]:
             return {"status": "governance_blocked", "reason": gov_check["reason"]}
 
-        # 5. MEMORY RETRIEVAL
+        # 5. STRATEGIC MEMORY RETRIEVAL
         context = self.memory.get_continuity_context(arc_id)
+        context.update(self.memory.retrieve_strategic_context(arc_id, workflow_id))
         context.update({"trace_id": trace_id, "loop": self, "risk_level": risk_level})
 
-        # 6. RECURSIVE VERIFICATION ENGINE
+        # 6. RECURSIVE VERIFICATION ENGINE (Wraps Dependency, Prioritization, Execution)
         async def reasoning_step(inp):
+             # A. Dependency Resolution
+             deps = self.dependency_resolver.get_blocking_chains(workflow_id)
+             if deps: logger.info(f"Resolving blocking chains for {workflow_id}: {deps}")
+
+             # B. Prioritization
+             priority = self.priority_engine.evaluate_priority(current_action, context)
+
              plan = await orchestrator_fn(inp, context)
 
-             # ACTION AUTHORIZATION (Late binding to handle orchestrated actions)
-             nonlocal action_type
-             action_type = plan.get("action") or action_type
-
-             auth_check = self.authorizer.validate(actor_role, action_type)
+             # C. Late Binding Action Authorization
+             bound_action = plan.get("action") or current_action
+             auth_check = self.authorizer.validate(actor_role, bound_action)
              if not auth_check["authorized"]:
-                 GovernanceEvents.log_authorization_denied(actor_role, action_type, auth_check["reason"])
+                 GovernanceEvents.log_authorization_denied(actor_role, bound_action, auth_check["reason"])
                  raise ValueError(f"Authorization denied: {auth_check['reason']}")
 
+             plan["priority"] = priority
              return plan
-        async def critique_step(plan): return {"critique": "Plan validated against risk matrix", "risk": risk_level}
+
+        async def critique_step(plan): return {"critique": "Plan validated against strategic priorities", "risk": risk_level}
         async def validation_step(plan, critique):
-            # Enforce extra verification for HIGH risk
             valid = True
             if escalation["extra_verification"] and not critique.get("verified_deep"):
                  logger.info(f"Applying deep verification for {risk_level} risk action")
@@ -158,15 +157,19 @@ class CognitionLoop:
         # 7. PERSISTENCE
         self.memory.store_memory(
             arc_id=arc_id,
-            content=f"Hardened execution of {action_type}. Risk: {risk_level}. Status: {verification_result['status']}",
+            content=f"Strategic execution of {current_action}. Risk: {risk_level}. Priority: {verification_result['reasoning'].get('priority', {}).get('score')}",
             memory_type="operational"
         )
 
-        # 8. OBSERVABILITY (Return Trace)
+        # 8. CONTINUITY UPDATE
+        self.continuity_engine.track_workflow(workflow_id, arc_id, {"status": "executed", "action": current_action})
+
+        # 9. OBSERVABILITY
         return {
             "status": "success",
             "trace_id": trace_id,
             "workflow_id": workflow_id,
             "risk_level": risk_level,
+            "priority": verification_result["reasoning"].get("priority"),
             "result": verification_result["execution"]
         }

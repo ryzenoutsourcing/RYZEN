@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from ryzen.packages.schemas.models import MemoryEntry
 import uuid
 import logging
+from datetime import datetime, UTC
 
 logger = logging.getLogger(__name__)
 
@@ -74,3 +75,18 @@ class MemoryFederationLayer:
         return self.db.query(MemoryEntry).filter(
             MemoryEntry.arc_id == arc_id
         ).limit(limit).all()
+
+    def retrieve_strategic_context(self, arc_id: str, workflow_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Relevance-ranked strategic memory retrieval for operational history and failure recall.
+        """
+        history = self.db.query(MemoryEntry).filter(
+            MemoryEntry.arc_id == arc_id,
+            MemoryEntry.content.like("%failure%") | MemoryEntry.content.like("%success%")
+        ).limit(10).all()
+
+        return {
+            "workflow_id": workflow_id,
+            "historical_lessons": [m.content for m in history],
+            "retrieved_at": datetime.now(UTC).isoformat()
+        }

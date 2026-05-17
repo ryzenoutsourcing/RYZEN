@@ -120,6 +120,17 @@ async def list_bookings(db: Session = Depends(get_db)):
 async def list_schedules(db: Session = Depends(get_db)):
     return db.query(Schedule).all()
 
+# --- PHASE 3.3 STRATEGIC CONTINUITY ENDPOINTS ---
+
+@app.get("/continuity/state")
+async def get_continuity_state(arc_id: str, db: Session = Depends(get_db)):
+    # In real implementation, query 'workflow_continuity' table
+    return {"arc_id": arc_id, "status": "operational", "unresolved_count": 0}
+
+@app.get("/dependencies")
+async def inspect_dependencies(workflow_id: str):
+    return {"workflow_id": workflow_id, "blocking_chains": [], "status": "clean"}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

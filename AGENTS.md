@@ -47,3 +47,12 @@ When working on Ryzen, adhere to these non-negotiable principles:
 4. **Human Governance Hardening**: Approval queues and workflow intervention capabilities.
 5. **Resilience Expansion**: Retry classification and failure persistence.
 6. **Governance Observability**: Specialized tracking for authorization, risk, and constraint events.
+
+## Phase 3.3: Strategic Continuity & Adaptive Coordination
+1. **Continuity State Engine**: Persistent awareness of unresolved workflows and deferred operations.
+2. **Adaptive Prioritization**: Deterministic scoring based on urgency, strategic weight, and dependency pressure.
+3. **Dependency Graph Intelligence**: Understanding execution dependencies, blocking chains, and coordination edges.
+4. **Deferred Execution**: Management of paused workflows, retries, and scheduled reactivation.
+5. **Strategic Memory**: Contextual retrieval of relevant operational and failure history.
+6. **Continuity Conflicts**: Detection of contradictory workflows and resource collisions.
+7. **Timeline Intelligence**: Temporal tracking of lifecycles and escalation windows.
