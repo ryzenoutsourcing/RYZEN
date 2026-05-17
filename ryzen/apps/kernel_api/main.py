@@ -4,10 +4,11 @@ from typing import Dict, Any, Optional, List
 from ryzen.apps.governance.middleware import GovernanceMiddleware
 from ryzen.apps.arc_factory.factory import ARCFactory
 from ryzen.apps.fleet_arc.orchestrator import FleetARC
-from ryzen.packages.schemas.models import Base, ARC, Booking, Schedule, MemoryEntry
+from ryzen.packages.schemas.models import Base, ARC, Booking, Schedule, MemoryEntry, OperationalEvent
 from ryzen.packages.shared.logging import setup_logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
+from ryzen.apps.governance.human_interface import HumanGovernanceInterface
 
 # Database setup
 DATABASE_URL = "sqlite:///./ryzen.db"
@@ -19,6 +20,9 @@ Base.metadata.create_all(bind=engine)
 setup_logging()
 
 app = FastAPI(title="Ryzen Kernel API")
+
+# Singletons for MVP
+human_gov = HumanGovernanceInterface()
 
 # Dependency
 def get_db():
@@ -87,32 +91,34 @@ async def handle_operational_request(request: OperationalRequest, db: Session = 
     result = await fleet.operational_request(request.text)
     return result
 
-# --- PHASE 3.1 EXPANDED ENDPOINTS ---
+# --- PHASE 3.2 EXPANDED ENDPOINTS ---
+
+@app.get("/governance/approvals")
+async def list_pending_approvals():
+    return list(human_gov.pending_approvals.values())
+
+@app.post("/governance/approve/{approval_id}")
+async def approve_action(approval_id: str):
+    human_gov.approve(approval_id)
+    return {"status": "approved", "id": approval_id}
+
+@app.get("/governance/audits")
+async def get_governance_audits(db: Session = Depends(get_db)):
+    return db.query(MemoryEntry).filter(MemoryEntry.memory_type == "governance").all()
+
+@app.get("/resilience/history")
+async def get_resilience_history(db: Session = Depends(get_db)):
+    return db.query(OperationalEvent).filter(OperationalEvent.event_type.in_(["failure", "state_transition"])).all()
+
+# --- EXISTING ENDPOINTS ---
 
 @app.get("/bookings")
 async def list_bookings(db: Session = Depends(get_db)):
     return db.query(Booking).all()
 
-@app.get("/bookings/{booking_id}/lifecycle")
-async def get_booking_lifecycle(booking_id: str, db: Session = Depends(get_db)):
-    from ryzen.packages.schemas.models import OperationalEvent
-    events = db.query(OperationalEvent).filter(
-        OperationalEvent.target_id == booking_id,
-        OperationalEvent.event_type == "state_transition"
-    ).order_by(OperationalEvent.timestamp.asc()).all()
-    return events
-
 @app.get("/schedules")
 async def list_schedules(db: Session = Depends(get_db)):
     return db.query(Schedule).all()
-
-@app.get("/governance/audit")
-async def get_governance_audit(arc_id: str, db: Session = Depends(get_db)):
-    audit = db.query(MemoryEntry).filter(
-        MemoryEntry.arc_id == arc_id,
-        MemoryEntry.memory_type == "governance"
-    ).all()
-    return audit
 
 if __name__ == "__main__":
     import uvicorn

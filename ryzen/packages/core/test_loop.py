@@ -30,7 +30,8 @@ async def test_cognition_loop_success():
         arc_id="arc-123",
         input_data={"action": "run_test"},
         orchestrator_fn=mock_orchestrator,
-        brain_selector_fn=mock_selector
+        brain_selector_fn=mock_selector,
+        actor_role="test"
     )
 
     assert result["status"] == "success"
@@ -53,7 +54,8 @@ async def test_cognition_loop_governance_block():
         arc_id="arc-123",
         input_data=input_data,
         orchestrator_fn=AsyncMock(),
-        brain_selector_fn=AsyncMock()
+        brain_selector_fn=AsyncMock(),
+        actor_role="test"
     )
 
     assert result["status"] == "governance_blocked"

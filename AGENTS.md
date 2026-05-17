@@ -39,3 +39,11 @@ When working on Ryzen, adhere to these non-negotiable principles:
 6. **Human Oversight**: Manual approval flows and workflow inspection.
 7. **Resilience**: Retry policies, graceful failure, and rollback infrastructure.
 8. **Observability**: Real operational lineage tracking (timing, state transitions, adapter traces).
+
+## Phase 3.2: Governance Hardening & Operational Resilience
+1. **Authorization Matrix**: Brain and subsystem level permission enforcement.
+2. **Risk Classification**: LOW to CRITICAL classification with mandatory escalation rules.
+3. **Execution Constraints**: Recursion limits, duplicate prevention, and collision detection.
+4. **Human Governance Hardening**: Approval queues and workflow intervention capabilities.
+5. **Resilience Expansion**: Retry classification and failure persistence.
+6. **Governance Observability**: Specialized tracking for authorization, risk, and constraint events.

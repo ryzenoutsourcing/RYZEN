@@ -101,7 +101,8 @@ class FleetARC:
 
     async def execute_node(self, node: Any) -> Dict[str, Any]:
         async def orchestrator_fn(inp, ctx):
-            return {"target_role": node.brain_role, "task_input": inp}
+            # Pass action explicitly for authorization
+            return {"target_role": node.brain_role, "task_input": inp, "action": node.name}
 
         async def brain_selector_fn(plan):
             target_role = plan["target_role"]
@@ -112,7 +113,8 @@ class FleetARC:
             arc_id=self.arc_record.id,
             input_data=node.input_data,
             orchestrator_fn=orchestrator_fn,
-            brain_selector_fn=brain_selector_fn
+            brain_selector_fn=brain_selector_fn,
+            actor_role=node.brain_role
         )
 
     async def handle_booking_logic(self, node: Any, result: Dict[str, Any]):
@@ -125,7 +127,7 @@ class FleetARC:
                 self.notification_engine.send_customer_notification(
                     self.arc_record.id, "cust-1", "booking_confirmed", {"details": inp}
                 )
-                return {"adapter_result": {"status": "notified"}}
+                return {"adapter_result": {"status": "notified"}, "action": "trigger_notification"}
 
             await self.cognition_loop.run(
                 arc_id=self.arc_record.id,
@@ -137,7 +139,7 @@ class FleetARC:
             # 2. Governed CRM Update
             async def crm_orchestrator(inp, ctx):
                 res = await self.crm.execute("update_history", {"action": "booking_created", "data": inp})
-                return {"adapter_result": res}
+                return {"adapter_result": res, "action": "update_history"}
 
             await self.cognition_loop.run(
                 arc_id=self.arc_record.id,

@@ -25,7 +25,7 @@ async def test_rollback_manager():
     async def undo_action():
         undone.append(True)
 
-    rollback.register(undo_action)
+    rollback.register("test_undo", undo_action)
     await rollback.rollback()
     assert len(undone) == 1
 
