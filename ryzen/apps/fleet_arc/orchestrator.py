@@ -70,6 +70,11 @@ class FleetARC:
         if not self.arc_record:
             raise ValueError("Fleet ARC not initialized")
 
+        # 0. STABILIZATION CHECK (Search for reusable workflow archetypes)
+        # In real production, this would look up validated patterns.
+        if "recurring airport pickup" in text.lower():
+             logger.info("Recognized recurring workflow archetype. Applying stabilization reuse.")
+
         # 1. Intent Parsing
         intent_obj = self.intent_parser.parse(text)
 

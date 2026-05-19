@@ -4,6 +4,22 @@ from datetime import datetime, UTC, timedelta
 
 logger = logging.getLogger(__name__)
 
+class RetryPatternTracker:
+    def __init__(self):
+        self.patterns: Dict[str, List[bool]] = {} # pattern_id -> list of success/fail
+
+    def log_retry(self, pattern_id: str, success: bool):
+        if pattern_id not in self.patterns:
+            self.patterns[pattern_id] = []
+        self.patterns[pattern_id].append(success)
+
+class RecoveryArchetypeRegistry:
+    def __init__(self):
+        self.archetypes: Dict[str, Dict[str, Any]] = {}
+
+    def register_archetype(self, error_type: str, recovery_strategy: Dict[str, Any]):
+        self.archetypes[error_type] = recovery_strategy
+
 class RetryScheduler:
     """
     Deferred Execution: Manages retry windows and scheduled reactivation.
@@ -11,6 +27,8 @@ class RetryScheduler:
 
     def __init__(self):
         self.retry_queue: List[Dict[str, Any]] = []
+        self.pattern_tracker = RetryPatternTracker()
+        self.recovery_registry = RecoveryArchetypeRegistry()
 
     def schedule_retry(self, workflow_id: str, action_type: str, delay_seconds: int = 60):
         scheduled_time = datetime.now(UTC) + timedelta(seconds=delay_seconds)

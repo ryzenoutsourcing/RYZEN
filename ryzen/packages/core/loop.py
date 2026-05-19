@@ -12,6 +12,9 @@ from ryzen.packages.core.dependencies import DependencyResolver
 from ryzen.packages.core.prioritization import PriorityEngine
 from ryzen.packages.core.continuity import ContinuityStateEngine
 from ryzen.packages.governance.conflicts import ContinuityConflictDetector
+from ryzen.packages.core.stabilization import ReusableExecutionRegistry, StabilizationRecommendation
+from ryzen.packages.governance.stabilization_guardrails import RewriteLoopDetector
+from ryzen.packages.observability.stabilization_events import StabilizationEvents
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +43,26 @@ class CognitionLoop:
         self.continuity_engine = ContinuityStateEngine()
         self.conflict_detector = ContinuityConflictDetector()
 
+        # Stabilization Extensions
+        self.stabilization_registry = ReusableExecutionRegistry()
+        self.rewrite_detector = RewriteLoopDetector()
+
     async def run_delegated(self, target_role: str, request: Dict[str, Any]) -> Dict[str, Any]:
         logger.info(f"Executing delegated task for role: {target_role}", extra={"request": request})
         return {"status": "delegated_completed", "role": target_role, "output": f"Delegated result for {target_role}"}
+
+    def _evaluate_stabilization_maturity(self, arc_id: str, workflow_id: str, action_type: str, success: bool):
+        """
+        Final stage: Preserve successful execution structures and maturity.
+        """
+        pattern_id = self.stabilization_registry.register_pattern(workflow_id, {"action": action_type})
+        self.stabilization_registry.log_result(pattern_id, success)
+
+        maturity = self.stabilization_registry.get_maturity(pattern_id)
+        StabilizationEvents.log_pattern_maturity(pattern_id, maturity, {"workflow_id": workflow_id})
+
+        if maturity > 0.8:
+            StabilizationEvents.log_reuse_recommendation(workflow_id, pattern_id, "High maturity pattern detected")
 
     async def run(
         self,
@@ -74,6 +94,11 @@ class CognitionLoop:
         logger.info(f"Starting strategic cognition loop for ARC {arc_id}", extra={
             "trace_id": trace_id, "arc_id": arc_id, "workflow_id": workflow_id, "action": current_action
         })
+
+        # 0. STABILIZATION GUARDRAILS
+        loop_check = self.rewrite_detector.check_redundancy(current_action)
+        if not loop_check["valid"]:
+             return {"status": "governance_blocked", "reason": loop_check["reason"]}
 
         # 1. EXECUTION CONSTRAINTS
         recursion_check = self.constraints.check_recursion(input_data.get("recursion_depth", 0))
@@ -164,7 +189,11 @@ class CognitionLoop:
         # 8. CONTINUITY UPDATE
         self.continuity_engine.track_workflow(workflow_id, arc_id, {"status": "executed", "action": current_action})
 
-        # 9. OBSERVABILITY
+        # 9. STABILIZATION EVALUATION
+        success = verification_result["status"] == "success"
+        self._evaluate_stabilization_maturity(arc_id, workflow_id, current_action, success)
+
+        # 10. OBSERVABILITY
         return {
             "status": "success",
             "trace_id": trace_id,

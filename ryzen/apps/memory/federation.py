@@ -90,3 +90,16 @@ class MemoryFederationLayer:
             "historical_lessons": [m.content for m in history],
             "retrieved_at": datetime.now(UTC).isoformat()
         }
+
+    def retrieve_reusable_patterns(self, arc_id: str, threshold: float = 0.8) -> List[Dict[str, Any]]:
+        """
+        Retrieves validated orchestration sequences from reusable patterns.
+        """
+        # In real production, this would query a dedicated 'stabilized_patterns' table.
+        # For MVP, we filter memory for 'stabilized' content.
+        patterns = self.db.query(MemoryEntry).filter(
+            MemoryEntry.arc_id == arc_id,
+            MemoryEntry.content.like("%stabilized_pattern%")
+        ).all()
+
+        return [{"content": p.content, "metadata": p.embedding} for p in patterns]

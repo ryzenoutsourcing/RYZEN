@@ -48,6 +48,15 @@ When working on Ryzen, adhere to these non-negotiable principles:
 5. **Resilience Expansion**: Retry classification and failure persistence.
 6. **Governance Observability**: Specialized tracking for authorization, risk, and constraint events.
 
+## Phase 3.4: Operational Maturity Stabilization
+1. **Stabilization Substrate**: Lightweight registry for reusable execution patterns and workflow archetypes.
+2. **Continuity Evolution**: Evaluates workflow maturity, retry volatility, and operational entropy.
+3. **Dependency Stabilization**: Detects unstable dependency chains and orchestration bottlenecks.
+4. **Retry & Recovery Stabilization**: Recognizes successful recovery patterns and stable retry strategies.
+5. **Timeline Stabilization**: Recognition of recurring orchestration archetypes and execution timing stability.
+6. **Stabilization-Aware Memory**: Retrieval of reusable operational workflows and validated sequences.
+7. **Stabilization Guardrails**: Detects rewrite loops, orchestration duplication, and recursive retry inflation.
+
 ## Phase 3.3: Strategic Continuity & Adaptive Coordination
 1. **Continuity State Engine**: Persistent awareness of unresolved workflows and deferred operations.
 2. **Adaptive Prioritization**: Deterministic scoring based on urgency, strategic weight, and dependency pressure.

@@ -12,6 +12,10 @@ class DependencyResolver:
     def __init__(self):
         self.dependencies: Dict[str, Set[str]] = {} # node_id -> set of node_ids it depends on
 
+        # Phase 3.4 Stabilization Extensions
+        self.repeated_failure_chains: List[List[str]] = []
+        self.orchestration_volatility_history: List[int] = []
+
     def add_dependency(self, node_id: str, depends_on: str):
         if node_id not in self.dependencies:
             self.dependencies[node_id] = set()
@@ -21,6 +25,21 @@ class DependencyResolver:
         if self.has_cycle():
             self.dependencies[node_id].remove(depends_on)
             raise ValueError(f"Dependency cycle detected adding {depends_on} to {node_id}")
+
+    def detect_unstable_chains(self, chain: List[str]):
+        """
+        Detects repeatedly unstable execution chains.
+        """
+        if chain in self.repeated_failure_chains:
+             logger.warning(f"Unstable dependency chain detected: {chain}")
+        self.repeated_failure_chains.append(chain)
+
+    def calculate_volatility(self) -> float:
+        """
+        Calculates orchestration volatility index.
+        """
+        if not self.orchestration_volatility_history: return 0.0
+        return sum(self.orchestration_volatility_history) / len(self.orchestration_volatility_history)
 
     def get_blocking_chains(self, node_id: str) -> List[str]:
         return list(self.dependencies.get(node_id, set()))
@@ -63,5 +82,8 @@ class DependencyResolver:
 
         for node in all_nodes:
             visit(node)
+
+        # Log volatility based on sequence length changes
+        self.orchestration_volatility_history.append(len(ordered))
 
         return ordered
