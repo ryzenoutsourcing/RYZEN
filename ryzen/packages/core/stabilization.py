@@ -2,6 +2,7 @@ from typing import Dict, Any, List, Optional
 import logging
 import uuid
 from datetime import datetime, UTC
+from ryzen.packages.observability.constitutional_metrics import ConstitutionalMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +17,7 @@ class ExecutionPattern:
 class PatternMaturityScore:
     @staticmethod
     def calculate(successes: int, total: int) -> float:
-        if total == 0: return 0.0
-        return round(successes / total, 2)
+        return ConstitutionalMetrics.calculate_continuity_stability(successes, total)
 
 class ExecutionStabilityMetrics:
     def __init__(self):

@@ -44,3 +44,13 @@ class GovernanceEvents:
             "metadata": metadata or {}
         }
         logger.error(f"Execution constraint violated: {json.dumps(event)}")
+
+    @staticmethod
+    def log_governance_integrity(workflow_id: str, integrity_score: float):
+        event = {
+            "event_type": "governance_integrity_update",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "workflow_id": workflow_id,
+            "integrity_score": integrity_score
+        }
+        logger.info(f"Constitutional Metric Event: {json.dumps(event)}")
