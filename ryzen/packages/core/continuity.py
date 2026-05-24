@@ -62,7 +62,8 @@ class ContinuityStateEngine:
         successes = sum(s["success"] for s in self.maturity_tracker.workflow_stats.values())
 
         self.execution_stability_score = ConstitutionalMetrics.calculate_continuity_stability(successes, total)
-        self.operational_entropy_indicator = ConstitutionalMetrics.calculate_architectural_entropy(1.0 - self.execution_stability_score)
+        # Operational entropy is flagged if stability drops below threshold
+        self.operational_entropy_indicator = self.execution_stability_score < 0.7
 
     def get_deferred_records(self, arc_id: Optional[str] = None) -> List[Dict[str, Any]]:
         if arc_id:
