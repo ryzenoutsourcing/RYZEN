@@ -15,6 +15,8 @@ from ryzen.packages.governance.conflicts import ContinuityConflictDetector
 from ryzen.packages.core.stabilization import ReusableExecutionRegistry, StabilizationRecommendation
 from ryzen.packages.governance.stabilization_guardrails import RewriteLoopDetector
 from ryzen.packages.observability.stabilization_events import StabilizationEvents
+from ryzen.packages.observability.continuity_events import ContinuityEvents
+from ryzen.packages.observability.constitutional_metrics import ConstitutionalMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +62,12 @@ class CognitionLoop:
 
         maturity = self.stabilization_registry.get_maturity(pattern_id)
         StabilizationEvents.log_pattern_maturity(pattern_id, maturity, {"workflow_id": workflow_id})
+
+        # Calculate and log reuse ratio metric
+        reused = sum(1 for p in self.stabilization_registry.patterns.values() if p.total_count > 1)
+        total = len(self.stabilization_registry.patterns)
+        reuse_ratio = ConstitutionalMetrics.calculate_stabilization_reuse(reused, total)
+        StabilizationEvents.log_stabilization_metrics(workflow_id, reuse_ratio)
 
         if maturity > 0.8:
             StabilizationEvents.log_reuse_recommendation(workflow_id, pattern_id, "High maturity pattern detected")
@@ -188,6 +196,13 @@ class CognitionLoop:
 
         # 8. CONTINUITY UPDATE
         self.continuity_engine.track_workflow(workflow_id, arc_id, {"status": "executed", "action": current_action})
+
+        # Log stability metrics
+        ContinuityEvents.log_stability_index(
+            workflow_id,
+            self.continuity_engine.execution_stability_score,
+            self.continuity_engine.operational_entropy_indicator
+        )
 
         # 9. STABILIZATION EVALUATION
         success = verification_result["status"] == "success"

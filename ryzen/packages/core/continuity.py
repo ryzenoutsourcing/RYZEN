@@ -2,6 +2,7 @@ from typing import Dict, Any, List, Optional
 import logging
 import uuid
 from datetime import datetime, UTC
+from ryzen.packages.observability.constitutional_metrics import ConstitutionalMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -57,13 +58,11 @@ class ContinuityStateEngine:
         """
         self.maturity_tracker.track_maturity(workflow_id, success)
 
-        # Simple heuristic for stability
         total = sum(s["total"] for s in self.maturity_tracker.workflow_stats.values())
         successes = sum(s["success"] for s in self.maturity_tracker.workflow_stats.values())
 
-        if total > 0:
-            self.execution_stability_score = round(successes / total, 2)
-            self.operational_entropy_indicator = self.execution_stability_score < 0.7
+        self.execution_stability_score = ConstitutionalMetrics.calculate_continuity_stability(successes, total)
+        self.operational_entropy_indicator = ConstitutionalMetrics.calculate_architectural_entropy(1.0 - self.execution_stability_score)
 
     def get_deferred_records(self, arc_id: Optional[str] = None) -> List[Dict[str, Any]]:
         if arc_id:

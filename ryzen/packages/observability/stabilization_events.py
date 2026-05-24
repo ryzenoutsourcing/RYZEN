@@ -31,3 +31,13 @@ class StabilizationEvents:
             "reasoning": reasoning
         }
         logger.info(f"Stabilization Event: {json.dumps(event)}")
+
+    @staticmethod
+    def log_stabilization_metrics(workflow_id: str, reuse_ratio: float):
+        event = {
+            "event_type": "stabilization_metrics_update",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "workflow_id": workflow_id,
+            "reuse_ratio": reuse_ratio
+        }
+        logger.info(f"Constitutional Metric Event: {json.dumps(event)}")

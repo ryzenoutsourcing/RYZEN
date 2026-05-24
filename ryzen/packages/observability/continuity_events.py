@@ -32,3 +32,14 @@ class ContinuityEvents:
             "status": status
         }
         logger.info(f"Continuity Event: {json.dumps(event)}")
+
+    @staticmethod
+    def log_stability_index(workflow_id: str, stability_index: float, entropy_indicator: bool):
+        event = {
+            "event_type": "stability_index_update",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "workflow_id": workflow_id,
+            "stability_index": stability_index,
+            "entropy_indicator": entropy_indicator
+        }
+        logger.info(f"Constitutional Metric Event: {json.dumps(event)}")
