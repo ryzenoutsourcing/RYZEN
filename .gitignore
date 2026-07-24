@@ -152,3 +152,5 @@ cython_debug/
 # Ryzen local DB
 ryzen.db
 ryzen.db-journal
+node_modules/
+bun.lock

@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Fleetconnect Taxi · Klantenportaal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/nl.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        /* ===== ORIGINELE STIJLEN (volledig behouden) ===== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --prim-accent: #2c7da0;
+            --footer-dark: #1e2f3d;
+            --button-hover: #1a5c8c;
+            --header-dark: #1a2a3a;
+            --text-greyblue: #3a4a5a;
+            --card-bg: rgba(255, 255, 255, 0.88);
+            --border-light: #e0e8f0;
+            --footer-text: #e0edf5;
+            --footer-link-hover: #2c7da0;
+            --whatsapp-green: #075E54;
+            --whatsapp-hover: #054A44;
+            --sidebar-bg: #f8fafc;
+            --sidebar-text: #1a2a3a;
+            --sidebar-hover: #e2e8f0;
+            --sidebar-width-collapsed: 0px;
+            --sidebar-width-expanded: 280px;
+            --overlay-bg: rgba(0, 0, 0, 0.5);
+        }
+        html, body { margin: 0; padding: 0; height: 100%; }
+        body {
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            color: var(--header-dark);
+            line-height: 1.4;
+            overflow-x: hidden;
+        }
+        #background-map {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+        .content-overlay {
+            position: relative;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.20);
+            backdrop-filter: blur(0px);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .container { max-width: 1300px; margin: 0 auto; padding: 0 24px; width: 100%; }
+        .sidebar-trigger {
+            position: fixed; top: 0; right: 0; width: 30px; height: 100%;
+            z-index: 199; cursor: pointer; background: transparent;
+        }
+        .sidebar {
+            position: fixed; top: 0; right: -280px; width: 280px; height: 100%;
+            background: var(--sidebar-bg); box-shadow: -4px 0 20px rgba(0,0,0,0.08);
+            z-index: 200; transition: right 0.25s; padding: 24px 16px;
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .sidebar-trigger:hover ~ .sidebar, .sidebar:hover { right: 0; }
+        .sidebar-nav a {
+            display: flex; align-items: center; gap: 14px; padding: 12px 16px;
+            border-radius: 14px; color: var(--sidebar-text); text-decoration: none;
+            font-weight: 500;
+        }
+        .sidebar-nav a i { width: 24px; color: var(--prim-accent); }
+        .sidebar-nav a:hover { background: var(--sidebar-hover); }
+        .tabs-container {
+            display: flex;
+            gap: 8px;
+            border-bottom: 2px solid var(--border-light);
+            margin-bottom: 28px;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: flex-start;
+        }
+        .tab-btn {
+            background: none; border: none; padding: 10px 20px; font-weight: 600;
+            cursor: pointer; color: var(--text-greyblue); border-bottom: 2px solid transparent;
+        }
+        .tab-btn.active { color: var(--prim-accent); border-bottom-color: var(--prim-accent); }
+        .logout-tab-btn {
+            background: none; border: none; padding: 10px 20px; font-weight: 600;
+            cursor: pointer; color: #b91c1c; border-bottom: 2px solid transparent;
+            margin-left: auto;
+        }
+        .logout-tab-btn:hover { color: #7f1d1d; border-bottom-color: #b91c1c; }
+        .tab-container.hidden { display: none; }
+        .one-grid-block {
+            max-width: 850px; width: 100%; background: #fff;
+            border: 1px solid #dce3e9; box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+            margin: 0 auto 40px; border-radius: 24px; overflow: hidden;
+        }
+        .steps { display: flex; background: #f8fafc; border-bottom: 1px solid #e9ecef; }
+        .step-btn {
+            flex: 1; background: none; border: none; padding: 18px 12px;
+            font-weight: 700; font-size: 0.8rem; color: #64748b;
+            cursor: pointer; border-bottom: 3px solid transparent;
+            text-transform: uppercase;
+        }
+        .step-btn.active { color: #0066cc; border-bottom-color: #0066cc; background: #fff; }
+        .step-btn.done { color: #10b981; }
+        .carousel-page { display: none; padding: 32px 36px; min-height: 520px; }
+        .carousel-page.active-page { display: block; }
+        .nav-buttons { display: flex; justify-content: space-between; padding: 20px 36px 32px; gap: 16px; border-top: 1px solid #e9ecef; background: #fff; }
+        .nav-btn {
+            background: #0066cc; color: white; border: none; padding: 12px 28px;
+            font-weight: 700; border-radius: 40px; cursor: pointer; text-transform: uppercase;
+        }
+        .nav-btn.prev { background: #64748b; }
+        .nav-btn:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.6; }
+        .field { margin-bottom: 22px; position: relative; }
+        label { font-weight: 600; margin-bottom: 8px; display: block; font-size: 0.75rem; text-transform: uppercase; color: #2c3e50; }
+        .required-star { color: #e53e3e; }
+        input, select, textarea {
+            width: 100%; padding: 14px 18px; border: 1px solid #cbd5e1;
+            font-size: 0.9rem; background: #fff; color: #1a2a3a;
+            border-radius: 12px;
+        }
+        input:focus { outline: none; border-color: #0066cc; box-shadow: 0 0 0 3px rgba(0,102,204,0.1); }
+        .date-icon { position: absolute; right: 15px; top: 42px; color: #0066cc; pointer-events: none; }
+        .suggest-wrapper { position: relative; }
+        .suggestions {
+            position: absolute; background: white; border: 1px solid #cbd5e1;
+            border-top: none; max-height: 220px; overflow-y: auto;
+            width: 100%; z-index: 10000 !important;
+            display: none; border-radius: 0 0 12px 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+        .suggestion-item {
+            padding: 10px 16px; cursor: pointer; color: #1a2a3a;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .suggestion-item:hover { background: #f1f5f9; color: #0066cc; }
+        .roundtrip-box {
+            background: #f8fafc; padding: 14px 20px; margin: 16px 0 20px;
+            border-left: 3px solid #0066cc; display: flex; align-items: center; gap: 12px;
+            border-radius: 12px;
+        }
+        .error { background: #fee2e2; color: #b91c1c; padding: 10px; border-radius: 8px; margin-top: 12px; display: none; font-size: 0.8rem; }
+        .urgent-whatsapp {
+            background: #dcfce7; border-left: 4px solid #25d366; padding: 12px 16px;
+            margin-top: 16px; display: none; align-items: center; justify-content: space-between;
+            border-radius: 12px;
+        }
+        .urgent-whatsapp.show { display: flex; }
+        .whatsapp-btn { background: #25d366; color: white; padding: 6px 18px; border-radius: 40px; text-decoration: none; font-weight: bold; }
+        #map { width: 100%; height: 420px; border-radius: 12px; margin-bottom: 16px; border: 1px solid #e2e8f0; background: #e9ecef; }
+        .info-strip { display: flex; gap: 16px; background: #f8fafc; padding: 16px; border-radius: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+        .info-card { flex: 1; text-align: center; background: white; padding: 12px; border-radius: 12px; }
+        .info-card .value { font-size: 1.8rem; font-weight: 700; color: #0066cc; }
+        .route-legend { display: flex; gap: 24px; padding: 12px 20px; background: white; border-radius: 12px; margin: 8px 0; font-size: 0.75rem; }
+        .legend-color { width: 20px; height: 20px; border-radius: 50%; }
+        .legend-color.green { background: #22c55e; }
+        .legend-color.red { background: #ef4444; }
+        .legend-color.blue { background: #0066cc; height: 4px; width: 30px; border-radius: 2px; }
+        .vehicle-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin: 20px 0; }
+        .vehicle-card {
+            background: #f8fafc; border: 2px solid #e2e8f0; padding: 16px 8px;
+            text-align: center; cursor: pointer; border-radius: 12px;
+        }
+        .vehicle-card.selected { border-color: #0066cc; background: #e0f2fe; }
+        .extra-fields { background: #f8fafc; padding: 18px; border-radius: 12px; margin: 20px 0; }
+        .extra-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+        .checkbox-grid { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; }
+        .checkbox-grid label { display: flex; align-items: center; gap: 8px; background: white; padding: 6px 12px; border-radius: 20px; border: 1px solid #e2e8f0; }
+        .sub { color: #475569; border-left: 3px solid #0066cc; padding-left: 14px; margin-bottom: 24px; }
+        .total-display { background: #f8fafc; padding: 20px; text-align: center; font-size: 1.5rem; font-weight: 700; border-radius: 12px; margin: 20px 0; color: #0066cc; }
+        .payment-method { display: flex; gap: 20px; background: #f8fafc; padding: 14px 20px; border-radius: 20px; margin: 20px 0; }
+        .return-date-field { display: none; }
+        .return-date-field.visible { display: block; }
+        .rit-overzicht { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; margin-bottom: 20px; }
+        .profile-card, .stats-card { background: white; border-radius: 28px; padding: 28px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .stats-grid { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 32px; }
+        .stat-card { background: white; border-radius: 20px; padding: 20px; flex: 1; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .stat-card h3 { font-size: 2rem; color: #0066cc; }
+        .bookings-table { width: 100%; background: white; border-radius: 20px; overflow-x: auto; display: block; border-collapse: collapse; }
+        .bookings-table th, .bookings-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 40px; font-size: 0.7rem; font-weight: 600; }
+        .btn-icon { background: none; border: none; cursor: pointer; color: #0066cc; margin: 0 4px; }
+        .modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 10000;
+            display: flex; align-items: center; justify-content: center;
+            visibility: hidden; opacity: 0; transition: 0.2s;
+        }
+        .modal.active { visibility: visible; opacity: 1; }
+        .modal-content { background: white; max-width: 550px; width: 90%; border-radius: 28px; padding: 28px; max-height: 85vh; overflow-y: auto; }
+        .footer-dark { background: #1e2f3d; color: #e0edf5; padding: 48px 0 24px; margin-top: 40px; }
+        .footer-grid { max-width: 1300px; margin: 0 auto; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2rem; padding: 0 2rem; }
+        .footer-brand h4, .footer-ryz3n h4, .footer-legal h4, .footer-partners h4 { color: white; margin-bottom: 16px; }
+        .footer-ryz3n a, .footer-legal a, .footer-partners a { color: #e0edf5; text-decoration: none; line-height: 1.8; }
+        .footer-ryz3n a:hover, .footer-legal a:hover, .footer-partners a:hover { color: #2c7da0; }
+        .hidden { display: none !important; }
+        @media (max-width:800px) { .vehicle-grid { grid-template-columns: repeat(2,1fr); } .carousel-page { padding: 20px; } }
+        @media (max-width: 768px) { .sidebar-trigger { width: 40px; } }
+    </style>
+</head>
+<body>
+<div id="background-map"></div>
+<div class="content-overlay">
+    <div class="sidebar-trigger"></div>
+    <div class="sidebar">
+        <div class="sidebar-nav">
+            <a href="#" data-nav="home"><i class="fas fa-home"></i> Home</a>
+            <a href="#" data-nav="portal"><i class="fas fa-user-circle"></i> Mijn Portaal</a>
+            <a href="#" data-nav="contact"><i class="fas fa-envelope"></i> Contact</a>
+            <a href="#" class="logout-action"><i class="fas fa-sign-out-alt"></i> Uitloggen</a>
+        </div>
+    </div>
+
+    <div style="position: absolute; top: 20px; right: 20px; z-index: 100; display: flex; align-items: center; gap: 15px;">
+        <span id="userDisplay" style="font-size: 0.85rem; font-weight: 600; color: var(--header-dark); background: rgba(255,255,255,0.8); padding: 6px 14px; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);"></span>
+        <button class="logout-action" style="background: #b91c1c; color: white; border: none; padding: 8px 18px; border-radius: 20px; font-weight: 700; cursor: pointer; font-size: 0.85rem; transition: 0.2s;"><i class="fas fa-sign-out-alt"></i> Uitloggen</button>
+    </div>
+
+    <section class="hero" style="padding: 60px 0 40px; text-align: center;">
+        <div class="container">
+            <div class="hero-card" style="background: var(--card-bg); backdrop-filter: blur(4px); max-width:700px; margin:0 auto; padding:40px; border-radius:48px;">
+                <h1 style="font-size:2.6rem; color:var(--header-dark);"><i class="fas fa-taxi"></i> Fleetconnect Taxi</h1>
+                <p style="color:var(--text-greyblue);">Professioneel taxivervoer in heel België. Luchthaven, zakelijk, crew changes & documentenvervoer</p>
+                <a href="#" class="btn-primary" id="heroBookBtn"><i class="fas fa-calendar-alt"></i> Boek nu uw rit</a>
+            </div>
+        </div>
+    </section>
+
+    <div class="container">
+        <div class="tabs-container">
+            <button class="tab-btn active" data-tab="new-booking">📝 Nieuwe Rit</button>
+            <button class="tab-btn" data-tab="profile">👤 Mijn Profiel</button>
+            <button class="tab-btn" data-tab="dashboard">📊 Dashboard & Ritten</button>
+            <button class="tab-btn" data-tab="payments">💰 Betalingen</button>
+            <button id="logoutTabBtn" class="logout-tab-btn"><i class="fas fa-sign-out-alt"></i> Uitloggen</button>
+        </div>
+
+        <!-- TAB 1: Nieuwe Rit -->
+        <div id="new-booking-container" class="tab-container">
+            <div class="one-grid-block">
+                <div class="carousel">
+                    <div class="steps">
+                        <button class="step-btn active" data-page="1">1. Ritgegevens</button>
+                        <button class="step-btn" data-page="2">2. Route & Prijs</button>
+                        <button class="step-btn" data-page="3">3. Voertuig & Opties</button>
+                        <button class="step-btn" data-page="4">4. Klantgegevens</button>
+                        <button class="step-btn" data-page="5">5. Afrekenen</button>
+                    </div>
+                    <div id="page1" class="carousel-page active-page">
+                        <h1>🚖 Ritgegevens</h1>
+                        <div class="sub">België – €1,50/km | geen verleden / &lt; 1u → WhatsApp</div>
+                        <div class="field"><label>📍 Ophaaladres <span class="required-star">*</span></label>
+                            <div class="suggest-wrapper" id="pickupWrap"><input type="text" id="pickupInput" placeholder="bv. Gent"><div id="pickupSuggest" class="suggestions"></div></div>
+                        </div>
+                        <div class="field"><label>🏁 Afzetadres <span class="required-star">*</span></label>
+                            <div class="suggest-wrapper" id="dropoffWrap"><input type="text" id="dropoffInput" placeholder="bv. Brussel"><div id="dropoffSuggest" class="suggestions"></div></div>
+                        </div>
+                        <div class="roundtrip-box"><input type="checkbox" id="roundtripCheckbox"> <label>🔄 Heen en terug rit (x2)</label></div>
+                        <div class="field"><label>✈️ Vluchtnummer (optioneel)</label><input type="text" id="flightNumber" placeholder="bv. BA398"></div>
+                        <div class="field">
+                            <label>📅 Heen datum & tijd <span class="required-star">*</span></label>
+                            <input type="text" id="datetime" placeholder="DD-MM-YYYY HH:MM" readonly>
+                            <i class="fas fa-calendar-alt date-icon"></i>
+                        </div>
+                        <div class="field return-date-field" id="returnDateContainer">
+                            <label>📅 Terug datum & tijd</label>
+                            <input type="text" id="returnDatetime" placeholder="DD-MM-YYYY HH:MM" readonly>
+                            <i class="fas fa-calendar-alt date-icon"></i>
+                        </div>
+                        <div id="urgentWhatsApp" class="urgent-whatsapp"><span>⚠️ Vertrekt binnen het uur – WhatsApp</span><a href="https://wa.me/32470123456" class="whatsapp-btn">📱 WhatsApp nu</a></div>
+                        <div id="page1Error" class="error"></div>
+                        <div class="footnote">* Verplicht – klik in het datumveld om kalender te openen</div>
+                    </div>
+                    <div id="page2" class="carousel-page">
+                        <h2>🗺️ Route & Prijs</h2>
+                        <div id="map"></div>
+                        <div class="route-legend"><div class="legend-item"><div class="legend-color green"></div><span>🟢 Ophalen</span></div><div class="legend-item"><div class="legend-color red"></div><span>🔴 Afzetten</span></div><div class="legend-item"><div class="legend-color blue"></div><span>🔵 Route</span></div></div>
+                        <div class="info-strip"><div class="info-card"><div class="label">📏 Afstand</div><div class="value" id="distVal">—</div><small>km</small></div><div class="info-card"><div class="label">⏱️ Reistijd</div><div class="value" id="timeVal">—</div><small>min</small></div><div class="info-card"><div class="label">💰 Prijs</div><div class="value" id="priceVal">—</div><small>€</small></div></div>
+                        <div id="page2Error" class="error"></div>
+                    </div>
+                    <div id="page3" class="carousel-page">
+                        <h2>🚘 Kies uw voertuig</h2>
+                        <div class="vehicle-grid" id="vehicleGrid">
+                            <div class="vehicle-card selected" data-vehicle="Standaard" data-extraprice="0"><div class="vehicle-emoji">🚗</div><div class="vehicle-name">Standaard</div><div class="vehicle-price">geen meerprijs</div></div>
+                            <div class="vehicle-card" data-vehicle="Break" data-extraprice="5"><div class="vehicle-emoji">🚙</div><div class="vehicle-name">Break</div><div class="vehicle-price">+ €5</div></div>
+                            <div class="vehicle-card" data-vehicle="Exclusieve" data-extraprice="15"><div class="vehicle-emoji">🚘</div><div class="vehicle-name">Exclusieve</div><div class="vehicle-price">+ €15</div></div>
+                            <div class="vehicle-card" data-vehicle="Mini Van" data-extraprice="10"><div class="vehicle-emoji">🚐</div><div class="vehicle-name">Mini Van</div><div class="vehicle-price">+ €10</div></div>
+                        </div>
+                        <div class="extra-fields"><h3>➕ Extra opties</h3><div class="extra-grid"><div><label>👥 Aantal passagiers</label><input type="number" id="passengers" min="1" value="1"></div><div><label>🧳 Bagagestuks</label><input type="number" id="luggage" min="0" value="0"></div></div>
+                        <div class="checkbox-grid"><label><input type="checkbox" id="meetGreet"> 🤝 Meet & Greet</label><label><input type="checkbox" id="kissRide"> 💋 Kiss & Ride</label><label><input type="checkbox" id="waterBottle"> 💧 Waterfles</label><label><input type="checkbox" id="wifi"> 📶 WiFi</label></div>
+                        <div><label>📝 Speciale wensen</label><textarea id="specialWishes" rows="2" placeholder="bv. kinderzitje"></textarea></div></div>
+                        <div id="page3Error" class="error"></div>
+                    </div>
+                    <div id="page4" class="carousel-page">
+                        <h1>📋 Uw gegevens</h1><div class="sub">Vul uw contactgegevens in (worden uit profiel geladen)</div>
+                        <div class="field"><label>Voornaam <span class="required-star">*</span></label><input type="text" id="firstName"></div>
+                        <div class="field"><label>Achternaam <span class="required-star">*</span></label><input type="text" id="lastName"></div>
+                        <div class="field"><label>GSM <span class="required-star">*</span></label><input type="tel" id="phone" placeholder="+32 4xx xx xx xx"></div>
+                        <div class="field"><label>E-mail <span class="required-star">*</span></label><input type="email" id="email" placeholder="info@fleetconnect.be"></div>
+                        <div class="field"><label>BTW (optioneel)</label><input type="text" id="vat" placeholder="BE 0123.456.789"></div>
+                        <div id="page4Error" class="error"></div>
+                    </div>
+                    <div id="page5" class="carousel-page">
+                        <h1>💰 Afrekenen</h1><div class="sub">Kies betaalmethode & bevestig</div>
+                        <div class="rit-overzicht"><h3>📋 Uw ritoverzicht</h3>
+                            <div class="rit-overzicht-detail"><strong>📍 Ophalen:</strong> <span id="overviewPickup">—</span></div>
+                            <div class="rit-overzicht-detail"><strong>🏁 Afzetten:</strong> <span id="overviewDestination">—</span></div>
+                            <div class="rit-overzicht-detail"><strong>📅 Heen datum/tijd:</strong> <span id="overviewHeen">—</span></div>
+                            <div id="overviewReturnContainer" class="rit-overzicht-detail" style="display: none;"><strong>🔄 Terug datum/tijd:</strong> <span id="overviewReturn">—</span></div>
+                            <div class="rit-overzicht-detail"><strong>🚘 Voertuig:</strong> <span id="overviewVehicle">—</span></div>
+                            <div class="rit-overzicht-detail"><strong>➕ Extra opties:</strong> <span id="overviewExtras">—</span></div>
+                            <div class="rit-overzicht-totaal"><strong>💰 Totaalprijs:</strong> <span id="overviewTotal">€ 0,00</span></div>
+                        </div>
+                        <div class="payment-method"><span>Betaalmethode:</span><label><input type="radio" name="payment" value="Cash" checked> 💵 Cash</label><label><input type="radio" name="payment" value="Kaart"> 💳 Kaart</label><label><input type="radio" name="payment" value="App"> 📱 App</label></div>
+                        <div id="totalDisplay" class="total-display">Totaal: € 0,00</div>
+                        <button id="finalConfirmBtn" class="nav-btn" style="background:#10b981; width:100%;">✅ Bevestig boeking</button>
+                        <div id="page5Error" class="error"></div>
+                    </div>
+                    <div class="nav-buttons"><button class="nav-btn prev" id="prevBtn" disabled>◀ Vorige</button><button class="nav-btn next" id="nextBtn">Volgende ▶</button></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: Profiel -->
+        <div id="profile-container" class="tab-container hidden">
+            <div class="profile-card">
+                <h3>Mijn gegevens</h3>
+                <form id="profileForm">
+                    <div class="field"><label>Volledige naam</label><input type="text" id="fullName" required></div>
+                    <div class="field"><label>E-mail</label><input type="email" id="profileEmail" required></div>
+                    <div class="field"><label>Telefoon</label><input type="tel" id="profilePhone" required></div>
+                    <button type="submit" class="btn-primary">Opslaan</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- TAB 3: Dashboard -->
+        <div id="dashboard-container" class="tab-container hidden">
+            <div class="stats-grid" id="statsGrid"></div>
+            <h4>📅 Komende ritten</h4>
+            <table class="bookings-table" id="upcomingTable"><thead><tr><th>ID</th><th>Datum/tijd</th><th>Route</th><th>Voertuig</th><th>Bedrag</th><th>Status</th><th>Acties</th></tr></thead><tbody></tbody></table>
+            <h4>✅ Voltooide ritten</h4>
+            <table class="bookings-table" id="completedTable"><thead><tr><th>ID</th><th>Datum/tijd</th><th>Route</th><th>Voertuig</th><th>Bedrag</th><th>Status</th><th>Acties</th></tr></thead><tbody></tbody></table>
+        </div>
+
+        <!-- TAB 4: Betalingen -->
+        <div id="payments-container" class="tab-container hidden">
+            <div class="profile-card">
+                <h3>💰 Betalingsgeschiedenis</h3>
+                <div id="paymentsList" style="margin-top:20px;">
+                    <table class="bookings-table" id="paymentsTable">
+                        <thead><tr><th>ID</th><th>Datum</th><th>Bedrag</th><th>Methode</th><th>Status</th><th>Factuur</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer-dark">
+        <div class="footer-grid">
+            <div class="footer-brand"><h4><i class="fas fa-taxi"></i> Fleetconnect Taxi</h4><p>Uw betrouwbare taxipartner in België | Stipt, modern & transparant</p></div>
+            <div class="footer-ryz3n"><h4>Ryz3n | Digital Supremacy</h4><a href="#">Control Panel</a><a href="#">Taxi & Dispatch</a><a href="#">Immobiliën Verhuur</a><a href="#">Logistiek & Supply Chain</a><a href="#">Legal & Privacy</a></div>
+            <div class="footer-legal"><h4 data-i18n="footer_juridisch">Juridisch</h4><a href="#" data-i18n="footer_voorwaarden">Algemene voorwaarden</a><a href="#" data-i18n="footer_privacy">Privacy</a><a href="#" data-i18n="footer_cookie">Cookiebeleid</a></div>
+            <div class="footer-partners"><h4 data-i18n="footer_partners">Partners</h4><a href="#">Horizon Of Infinity</a></div>
+        </div>
+        <div class="footer-bottom">© 2026 Fleetconnect Taxi – <a href="#">Ryz3n</a></div>
+    </footer>
+</div>
+
+<div id="ritModal" class="modal"><div class="modal-content" id="modalContent"></div></div>
+
+<script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+    import { comms } from './src/modules/communication/index.js';
+    const SUPABASE_URL = 'https://rreqjjrmvytnwnsidmqi.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyZXFqanJtdnl0bnduc2lkbXFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MjAxMzcsImV4cCI6MjA5Mzk5NjEzN30.q4M3A6Dix3F_9Im2pw8DUIeE4C-INtUlvImRDM58MTA';
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    window.comms = comms;
+
+    // AUTH & SESSION
+    async function checkAuth() {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+             // Stuur door naar de login pagina als er geen actieve sessie is
+             window.location.href = 'loginfleetconnect.html';
+             return;
+        }
+        currentUser.id = session.user.id;
+        currentUser.email = session.user.email;
+        loadUserProfile();
+        loadUserBookings();
+    }
+    checkAuth();
+
+    function generateCustomerId(email) {
+        return "CUST-" + email.toLowerCase().replace(/[^a-z0-9]/g, "");
+    }
+
+    let currentUser = {
+        id: 'demo-user',
+        full_name: 'Gebruiker',
+        email: 'demo@fleetconnect.be',
+        phone: ''
+    };
+
+    let userBookings = [];
+    let bookingMap, pickupCoord = null, dropoffCoord = null, routeLayer, currentRouteData = null, currentRoundTrip = false, currentReturnDateTime = "";
+    let selectedVehicle = 'Standaard', selectedVehicleExtra = 0, currentPage = 1;
+    let returnFlatpickr = null;
+    let debounceTimer;
+
+    // UI Updates
+    document.addEventListener('DOMContentLoaded', () => {
+        const display = document.getElementById('userDisplay');
+        if(display && currentUser.email) display.innerText = `Ingelogd als: ${currentUser.email}`;
+    });
+
+    // Achtergrondkaart
+    var bgMap = L.map('background-map').setView([50.8503, 4.3517], 8);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(bgMap);
+    bgMap.dragging.disable(); bgMap.touchZoom.disable(); bgMap.doubleClickZoom.disable(); bgMap.scrollWheelZoom.disable(); bgMap.boxZoom.disable(); bgMap.keyboard.disable(); if (bgMap.tap) bgMap.tap.disable();
+    setTimeout(function() { bgMap.invalidateSize(); }, 100);
+    window.addEventListener('resize', function() { bgMap.invalidateSize(); });
+
+    // *** AANGEPASTE LOGOUT FUNCTIE - stuurt door naar loginfleetconnect.html ***
+    async function logout() {
+        try {
+            // Supabase session beëindigen
+            const { error } = await supabase.auth.signOut();
+            if (error) console.error("Logout error:", error);
+        } catch (err) {
+            console.error("Logout exception:", err);
+        }
+        // Doorsturen naar de loginpagina
+        window.location.href = 'loginfleetconnect.html';
+    }
+
+    // Koppel de logout functie aan alle uitlog knoppen
+    document.querySelectorAll('.logout-action').forEach(btn => btn.addEventListener('click', logout));
+    document.getElementById('logoutTabBtn')?.addEventListener('click', logout);
+
+    // PROFIEL
+    async function loadUserProfile() {
+        const { data } = await supabase.from('customers').select('name, email, phone').eq('id', currentUser.id).maybeSingle();
+        if (data) {
+            currentUser.full_name = data.name;
+            currentUser.email = data.email;
+            currentUser.phone = data.phone;
+        } else {
+            console.error('Klant niet gevonden in customers tabel');
+        }
+
+        document.getElementById('fullName').value = currentUser.full_name || '';
+        document.getElementById('profileEmail').value = currentUser.email || '';
+        document.getElementById('profilePhone').value = currentUser.phone || '';
+
+        const nameParts = (currentUser.full_name || '').split(' ');
+        document.getElementById('firstName').value = nameParts[0] || '';
+        document.getElementById('lastName').value = nameParts.slice(1).join(' ') || '';
+        document.getElementById('phone').value = currentUser.phone || '';
+        document.getElementById('email').value = currentUser.email || '';
+    }
+
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('fullName').value;
+        const email = document.getElementById('profileEmail').value;
+        const phone = document.getElementById('profilePhone').value;
+
+        const { error } = await supabase.from('customers').update({ name, email, phone }).eq('id', currentUser.id);
+
+        if (error) {
+            alert('Fout bij opslaan: ' + error.message);
+        } else {
+            currentUser.full_name = name;
+            currentUser.email = email;
+            currentUser.phone = phone;
+            alert('Profiel opgeslagen');
+            await loadUserProfile();
+        }
+    });
+
+    // DASHBOARD
+    async function loadUserBookings() {
+        const { data, error } = await supabase
+            .from('bookings')
+            .select('*')
+            .or(`user_id.eq.${currentUser.id},customer_id.eq.CUST-${currentUser.email.replace(/[^a-z0-9]/gi, '').substring(0,30)}`)
+            .order('datetime', { ascending: false });
+
+        if (error) {
+            console.error('Error loading bookings:', error);
+            return;
+        }
+        userBookings = data || [];
+        renderDashboard();
+    }
+    function renderDashboard() {
+        const upcoming = userBookings.filter(b => b.status !== 'completed');
+        const completed = userBookings.filter(b => b.status === 'completed');
+        const totalSpent = completed.reduce((s,b)=>s+b.amount,0);
+        document.getElementById('statsGrid').innerHTML = `
+            <div class="stat-card"><h3>${upcoming.length}</h3><p>Komende ritten</p></div>
+            <div class="stat-card"><h3>${completed.length}</h3><p>Voltooide ritten</p></div>
+            <div class="stat-card"><h3>€${totalSpent.toFixed(2)}</h3><p>Totaal besteed</p></div>
+        `;
+        const renderTable = (tableId, bookings) => {
+            const tbody = document.querySelector(`#${tableId} tbody`);
+            tbody.innerHTML = bookings.map(b => `
+                <tr>
+                    <td>${b.id}</td>
+                    <td>${b.datetime} ${b.time || ''}</td>
+                    <td>${b.pickup.split(',')[0]} → ${b.destination.split(',')[0]}</td>
+                    <td>${b.vehicle}</td>
+                    <td>€${b.amount}</td>
+                    <td><span class="status-badge" style="background:${b.status==='completed'?'#dcfce7':'#fef3c7'}">${b.status}</span></td>
+                    <td>
+                        <button class="repeat-booking" data-id='${JSON.stringify(b)}'><i class="fas fa-redo-alt btn-icon"></i></button>
+                        <button class="view-fiche" data-id='${JSON.stringify(b)}'><i class="fas fa-eye btn-icon"></i></button>
+                        <button class="download-pdf" data-id='${JSON.stringify(b)}'><i class="fas fa-download btn-icon"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        };
+        renderTable('upcomingTable', upcoming);
+        renderTable('completedTable', completed);
+        attachBookingActions();
+    }
+    function showRitFiche(booking) {
+        const modal = document.getElementById('ritModal');
+        const modalContent = document.getElementById('modalContent');
+        modalContent.innerHTML = `
+            <h2 style="margin-bottom: 20px;">🚖 Ritfiche</h2>
+            <p><strong>Boeking:</strong> ${booking.id}</p>
+            <p><strong>Datum:</strong> ${booking.datetime} ${booking.time || ''}</p>
+            <p><strong>Van:</strong> ${booking.pickup}</p>
+            <p><strong>Naar:</strong> ${booking.destination}</p>
+            <p><strong>Voertuig:</strong> ${booking.vehicle}</p>
+            <p><strong>Extras:</strong> ${booking.extras || 'geen'}</p>
+            <p><strong>Bedrag:</strong> €${booking.amount}</p>
+            <p><strong>Status:</strong> ${booking.status}</p>
+            <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+                <button id="downloadPdfFromModal" class="btn-primary">📄 Download PDF</button>
+                <button id="closeModalBtn" class="btn-primary" style="background:#6c757d;">Sluiten</button>
+            </div>
+        `;
+        modal.classList.add('active');
+        document.getElementById('closeModalBtn').onclick = () => modal.classList.remove('active');
+        document.getElementById('downloadPdfFromModal').onclick = () => downloadRitPDF(booking);
+    }
+    async function downloadRitPDF(booking) {
+        const element = document.createElement('div');
+        element.style.padding = '20px';
+        element.style.fontFamily = 'Arial, sans-serif';
+        element.innerHTML = `
+            <h2 style="color: #2c7da0;">Fleetconnect Taxi</h2>
+            <h3>Ritfiche ${booking.id}</h3>
+            <p><strong>Klant:</strong> ${booking.name}</p>
+            <p><strong>Datum:</strong> ${booking.datetime} ${booking.time || ''}</p>
+            <p><strong>Route:</strong> ${booking.pickup} → ${booking.destination}</p>
+            <p><strong>Voertuig:</strong> ${booking.vehicle}</p>
+            <p><strong>Extras:</strong> ${booking.extras || 'geen'}</p>
+            <p><strong>Bedrag:</strong> €${booking.amount}</p>
+            <p><strong>Status:</strong> ${booking.status}</p>
+            <hr /><p style="font-size: 12px;">Dit is een officiële ritfiche van Fleetconnect Taxi.</p>
+        `;
+        html2pdf().from(element).set({ filename: `Ritfiche_${booking.id}.pdf` }).save();
+    }
+    function attachBookingActions() {
+        document.querySelectorAll('.repeat-booking').forEach(btn => btn.onclick = () => {
+            const b = JSON.parse(btn.getAttribute('data-id'));
+            document.getElementById('pickupInput').value = b.pickup;
+            document.getElementById('dropoffInput').value = b.destination;
+            document.getElementById('datetime').value = `${b.datetime} ${b.time}`;
+            switchToTab('new-booking');
+        });
+        document.querySelectorAll('.view-fiche').forEach(btn => btn.onclick = () => {
+            const b = JSON.parse(btn.getAttribute('data-id'));
+            showRitFiche(b);
+        });
+        document.querySelectorAll('.download-pdf').forEach(btn => btn.onclick = () => {
+            const b = JSON.parse(btn.getAttribute('data-id'));
+            downloadRitPDF(b);
+        });
+    }
+
+    // ========== ADRES AUTOCOMPLETE (volledig behouden) ==========
+    async function fetchAddresses(q, wrapId) {
+        const wrap = document.getElementById(wrapId);
+        const suggestionsDiv = wrap.querySelector('.suggestions');
+        if (!suggestionsDiv) return;
+        if (q.length < 3) { suggestionsDiv.style.display = 'none'; return; }
+        suggestionsDiv.innerHTML = '<div class="suggestion-item">🔍 Zoeken...</div>';
+        suggestionsDiv.style.display = 'block';
+        try {
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=6&countrycodes=be&addressdetails=0&accept-language=nl`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+            const response = await fetch(url, { headers: { 'User-Agent': 'Fleetconnect/2.0' }, signal: controller.signal });
+            clearTimeout(timeoutId);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            if (!data.length) {
+                suggestionsDiv.innerHTML = '<div class="suggestion-item">❌ Geen adressen gevonden in België</div>';
+                return;
+            }
+            suggestionsDiv.innerHTML = data.map(p => `<div class="suggestion-item" data-lat="${p.lat}" data-lon="${p.lon}">${p.display_name}</div>`).join('');
+        } catch (err) {
+            console.error(err);
+            suggestionsDiv.innerHTML = '<div class="suggestion-item" style="color:#b91c1c;">⚠️ Netwerkfout – probeer later</div>';
+        }
+    }
+    function initAutocomplete() {
+        const pickupInput = document.getElementById('pickupInput');
+        const dropoffInput = document.getElementById('dropoffInput');
+        pickupInput.addEventListener('input', (e) => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => fetchAddresses(e.target.value, 'pickupWrap'), 400);
+        });
+        dropoffInput.addEventListener('input', (e) => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => fetchAddresses(e.target.value, 'dropoffWrap'), 400);
+        });
+        document.querySelector('#pickupWrap .suggestions').addEventListener('click', (e) => {
+            const item = e.target.closest('.suggestion-item');
+            if (!item || !item.dataset.lat) return;
+            document.getElementById('pickupInput').value = item.innerText;
+            pickupCoord = { lat: parseFloat(item.dataset.lat), lon: parseFloat(item.dataset.lon) };
+            document.querySelector('#pickupWrap .suggestions').style.display = 'none';
+            if (pickupCoord && dropoffCoord) calculateAndStoreRoute();
+        });
+        document.querySelector('#dropoffWrap .suggestions').addEventListener('click', (e) => {
+            const item = e.target.closest('.suggestion-item');
+            if (!item || !item.dataset.lat) return;
+            document.getElementById('dropoffInput').value = item.innerText;
+            dropoffCoord = { lat: parseFloat(item.dataset.lat), lon: parseFloat(item.dataset.lon) };
+            document.querySelector('#dropoffWrap .suggestions').style.display = 'none';
+            if (pickupCoord && dropoffCoord) calculateAndStoreRoute();
+        });
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.suggest-wrapper')) {
+                document.querySelectorAll('.suggestions').forEach(s => s.style.display = 'none');
+            }
+        });
+    }
+
+    // ========== ROUTE & KAART ==========
+    async function ensureCoordinates() {
+        if (!pickupCoord && document.getElementById('pickupInput').value.trim()) {
+            const q = encodeURIComponent(document.getElementById('pickupInput').value);
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1&countrycodes=be`);
+            const data = await res.json();
+            if (data[0]) pickupCoord = { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+        }
+        if (!dropoffCoord && document.getElementById('dropoffInput').value.trim()) {
+            const q = encodeURIComponent(document.getElementById('dropoffInput').value);
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1&countrycodes=be`);
+            const data = await res.json();
+            if (data[0]) dropoffCoord = { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+        }
+    }
+    async function calcRoute(lat1, lon1, lat2, lon2) {
+        const url = `https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=full&geometries=geojson`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.code === 'Ok' && data.routes.length) {
+            const rt = data.routes[0];
+            return { distanceKm: (rt.distance/1000).toFixed(1), durationMin: Math.round(rt.duration/60), geometry: rt.geometry };
+        }
+        return null;
+    }
+    async function updateMapAndInfo(rd) {
+        if (routeLayer) bookingMap.removeLayer(routeLayer);
+        routeLayer = L.geoJSON(rd.geometry, { color: '#0066cc', weight: 6 }).addTo(bookingMap);
+        const bounds = L.latLngBounds([pickupCoord.lat, pickupCoord.lon], [dropoffCoord.lat, dropoffCoord.lon]);
+        bookingMap.fitBounds(bounds, { padding: [60,60] });
+        let d = parseFloat(rd.distanceKm), t = rd.durationMin;
+        if (currentRoundTrip) { d*=2; t*=2; }
+        const price = d * 1.5;
+        document.getElementById('distVal').innerHTML = d.toFixed(1);
+        document.getElementById('timeVal').innerHTML = t;
+        document.getElementById('priceVal').innerHTML = price.toFixed(2);
+        updateTotalDisplay();
+    }
+    function updateTotalDisplay() {
+        if (!currentRouteData) return;
+        let dist = parseFloat(currentRouteData.distanceKm);
+        if (currentRoundTrip) dist*=2;
+        let total = dist * 1.5 + selectedVehicleExtra;
+        document.getElementById('totalDisplay').innerHTML = `Totaal: € ${total.toFixed(2)}`;
+        document.getElementById('overviewPickup').innerText = document.getElementById('pickupInput').value;
+        document.getElementById('overviewDestination').innerText = document.getElementById('dropoffInput').value;
+        document.getElementById('overviewHeen').innerText = document.getElementById('datetime').value;
+        document.getElementById('overviewVehicle').innerText = selectedVehicle;
+        document.getElementById('overviewExtras').innerText = getExtrasString();
+        document.getElementById('overviewTotal').innerHTML = `€${total.toFixed(2)}`;
+        const retCont = document.getElementById('overviewReturnContainer');
+        if (currentRoundTrip && currentReturnDateTime) { retCont.style.display = 'block'; document.getElementById('overviewReturn').innerText = currentReturnDateTime; }
+        else retCont.style.display = 'none';
+    }
+    function getExtrasString() {
+        let extras = [];
+        if (document.getElementById('meetGreet').checked) extras.push("Meet & Greet");
+        if (document.getElementById('kissRide').checked) extras.push("Kiss & Ride");
+        if (document.getElementById('waterBottle').checked) extras.push("Waterfles");
+        if (document.getElementById('wifi').checked) extras.push("WiFi");
+        return extras.join(", ") || "Geen";
+    }
+    function parseEuroDate(str) {
+        if (!str) return null;
+        let [d,m,y,hh,min] = [...str.match(/(\d+)-(\d+)-(\d+)\s+(\d+):(\d+)/).slice(1)].map(Number);
+        return new Date(y, m-1, d, hh, min);
+    }
+    function isPast(ds) { let p = parseEuroDate(ds); return p ? p < new Date() : false; }
+    function isWithinNextHour(ds) { let diff = parseEuroDate(ds) - new Date(); return diff > 0 && diff < 3600000; }
+    function showError(page, msg) {
+        let errDiv = document.getElementById(`page${page}Error`);
+        if (errDiv) { errDiv.innerText = msg; errDiv.style.display = 'block'; setTimeout(() => errDiv.style.display = 'none', 4000); }
+    }
+    async function calculateAndStoreRoute() {
+        await ensureCoordinates();
+        if (!pickupCoord || !dropoffCoord) { showError(1, 'Selecteer adressen uit suggesties of typ een volledig adres.'); return false; }
+        const dt = document.getElementById('datetime').value;
+        if (!dt) { showError(1, 'Kies heen datum/tijd.'); return false; }
+        if (isPast(dt)) { showError(1, '❌ Geen ritten in verleden.'); return false; }
+        if (document.getElementById('roundtripCheckbox').checked) {
+            const returnDt = document.getElementById('returnDatetime').value;
+            if (!returnDt) { showError(1, 'Kies terug datum/tijd voor retour.'); return false; }
+            if (isPast(returnDt)) { showError(1, '❌ Terug rit mag niet in verleden zijn.'); return false; }
+            if (parseEuroDate(returnDt) <= parseEuroDate(dt)) { showError(1, '❌ Terug datum/tijd moet na heen datum/tijd zijn.'); return false; }
+            currentReturnDateTime = returnDt;
+        } else {
+            currentReturnDateTime = "";
+        }
+        const urgent = isWithinNextHour(dt);
+        document.getElementById('urgentWhatsApp').classList.toggle('show', urgent);
+        const rd = await calcRoute(pickupCoord.lat, pickupCoord.lon, dropoffCoord.lat, dropoffCoord.lon);
+        if (!rd) { showError(1, 'Route mislukt.'); return false; }
+        currentRouteData = rd;
+        currentRoundTrip = document.getElementById('roundtripCheckbox').checked;
+        await updateMapAndInfo(rd);
+        return true;
+    }
+    function generateBookingId() {
+        const d = new Date(), y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
+        let c = parseInt(localStorage.getItem('bookingCounter') || '0') + 1;
+        localStorage.setItem('bookingCounter', c);
+        return `T-PZ-${y}${m}${dd}-${String(c).padStart(3,'0')}`;
+    }
+
+    function buildFormData() {
+        return {
+            passengers: parseInt(document.getElementById('passengers')?.value) || 1,
+            luggage: parseInt(document.getElementById('luggage')?.value) || 0,
+            special_wishes: document.getElementById('specialWishes')?.value || "",
+            vat: document.getElementById('vat')?.value || "",
+            distance_km: currentRouteData ? parseFloat(currentRouteData.distanceKm) : null,
+            duration_min: currentRouteData ? currentRouteData.durationMin : null,
+            pickup_lat: pickupCoord ? pickupCoord.lat : null,
+            pickup_lon: pickupCoord ? pickupCoord.lon : null,
+            destination_lat: dropoffCoord ? dropoffCoord.lat : null,
+            destination_lon: dropoffCoord ? dropoffCoord.lon : null,
+            flight_number: document.getElementById('flightNumber')?.value || "",
+            return_datetime: currentReturnDateTime || null,
+            is_roundtrip: currentRoundTrip || false,
+            meet_greet: document.getElementById('meetGreet')?.checked || false,
+            kiss_ride: document.getElementById('kissRide')?.checked || false,
+            water: document.getElementById('waterBottle')?.checked || false,
+            wifi: document.getElementById('wifi')?.checked || false,
+            vehicle: selectedVehicle || "Standaard",
+            vehicle_extra_price: selectedVehicleExtra || 0
+        };
+    }
+
+    // ========== NIEUWE ROUNDTRIP LOGICA ==========
+    function buildSupabaseRecord(paymentMethod, amount, isReturnTrip = false, baseId = null) {
+        const firstName = document.getElementById('firstName').value.trim();
+        const lastName = document.getElementById('lastName').value.trim();
+        const fullName = `${firstName} ${lastName}`;
+        const emailRaw = document.getElementById('email').value.trim();
+        const phoneRaw = document.getElementById('phone').value.trim();
+        const pickupRaw = document.getElementById('pickupInput').value;
+        const destRaw = document.getElementById('dropoffInput').value;
+        const flightNumberRaw = document.getElementById('flightNumber').value.trim();
+        const vehicleRaw = selectedVehicle;
+        const extrasRaw = getExtrasString();
+        let datePart = "", timePart = "";
+        let dt;
+        if (isReturnTrip) {
+            dt = document.getElementById('returnDatetime').value;
+        } else {
+            dt = document.getElementById('datetime').value;
+        }
+        if (dt) {
+            const parts = dt.split(' ');
+            datePart = parts[0];
+            timePart = parts[1] || "";
+        }
+        let bookingId;
+        if (isReturnTrip && baseId) {
+            bookingId = `${baseId}/B`;
+        } else {
+            bookingId = baseId || generateBookingId();
+        }
+        return {
+            id: bookingId,
+            datetime: datePart,
+            time: timePart,
+            name: fullName,
+            email: emailRaw,
+            phone: phoneRaw,
+            pickup: pickupRaw,
+            destination: destRaw,
+            flight_number: flightNumberRaw || null,
+            vehicle: vehicleRaw,
+            extras: extrasRaw,
+            amount: parseFloat(amount),
+            payment: paymentMethod,
+            status: paymentMethod === "Cash" ? "pending" : "pending_payment",
+            customer_id: generateCustomerId(emailRaw),
+            form_data: buildFormData(),
+            payment_status: paymentMethod === "Cash" ? "cash_pending" : "unpaid"
+        };
+    }
+
+    async function sendToSupabase(record) {
+        try {
+            const response = await fetch(`${SUPABASE_URL}/rest/v1/bookings`, {
+                method: 'POST', headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Prefer': 'return=minimal'
+                },
+                body: JSON.stringify(record)
+            });
+            if (!response.ok) throw new Error(await response.text());
+            return true;
+        } catch (err) {
+            console.error(err);
+            return false;
+        }
+    }
+
+    async function createRoundTripBookings(paymentMethod, totalAmount) {
+        const halfAmount = totalAmount / 2;
+        const baseId = generateBookingId();
+        const heenRecord = buildSupabaseRecord(paymentMethod, halfAmount, false, baseId);
+        const terugRecord = buildSupabaseRecord(paymentMethod, halfAmount, true, baseId);
+        const success1 = await sendToSupabase(heenRecord);
+        const success2 = await sendToSupabase(terugRecord);
+        if (success1 && success2) {
+            if (paymentMethod === "Kaart" || paymentMethod === "App") {
+                try {
+                    const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+                        body: {
+                            bookingId: heenRecord.id,
+                            email: heenRecord.email,
+                            amount: totalAmount,
+                            paymentMethodType: paymentMethod,
+                            successUrl: `${window.location.origin}/klantenportaal.html?payment=success&id=${heenRecord.id}`,
+                            cancelUrl: `${window.location.origin}/klantenportaal.html?payment=cancelled&id=${heenRecord.id}`
+                        }
+                    });
+                    if (error) throw error;
+                    if (data.url) {
+                        window.location.href = data.url;
+                        return true;
+                    }
+                } catch (stripeErr) {
+                    console.error('Stripe error:', stripeErr);
+                    alert('Fout bij opstarten betaling: ' + stripeErr.message);
+                }
+            } else {
+                alert(`🎉 Roundtrip succesvol geboekt!\nHeen: ${heenRecord.id}\nTerug: ${terugRecord.id}\nBevestiging naar ${heenRecord.email}`);
+                if (window.comms) window.comms.trigger('BOOKING_CONFIRMATION', heenRecord.id, supabase);
+                return true;
+            }
+        } else {
+            alert("❌ Fout bij het opslaan van de retourrit. Probeer opnieuw.");
+            return false;
+        }
+    }
+
+    async function sendSingleBooking(paymentMethod, totalAmount) {
+        const record = buildSupabaseRecord(paymentMethod, totalAmount, false, null);
+        const success = await sendToSupabase(record);
+        if (success) {
+            if (paymentMethod === "Kaart" || paymentMethod === "App") {
+                try {
+                    const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+                        body: {
+                            bookingId: record.id,
+                            email: record.email,
+                            amount: totalAmount,
+                            paymentMethodType: paymentMethod,
+                            successUrl: `${window.location.origin}/klantenportaal.html?payment=success&id=${record.id}`,
+                            cancelUrl: `${window.location.origin}/klantenportaal.html?payment=cancelled&id=${record.id}`
+                        }
+                    });
+                    if (error) throw error;
+                    if (data.url) {
+                        window.location.href = data.url;
+                        return true;
+                    }
+                } catch (stripeErr) {
+                    console.error('Stripe error:', stripeErr);
+                    alert('Fout bij opstarten betaling: ' + stripeErr.message);
+                }
+            } else {
+                alert(`🎉 Bedankt voor uw reservatie, ${record.name}!\n\n📋 Uw reserveringsnummer: ${record.id}`);
+                if (window.comms) window.comms.trigger('BOOKING_CONFIRMATION', record.id, supabase);
+            }
+        }
+        return success;
+    }
+
+    async function finalizeBooking() {
+        if (!currentRouteData) { alert('Bereken eerst de route'); return; }
+        if (!selectedVehicle) { showError(5,'Geen voertuig gekozen'); return; }
+        const fn = document.getElementById('firstName').value.trim(), ln = document.getElementById('lastName').value.trim(), ph = document.getElementById('phone').value.trim(), em = document.getElementById('email').value.trim();
+        if (!fn || !ln || !ph || !em) { showError(5,'Vul alle klantgegevens in'); return; }
+        const payment = document.querySelector('input[name="payment"]:checked').value;
+        let dist = parseFloat(currentRouteData.distanceKm);
+        if (currentRoundTrip) dist *= 2;
+        let totalAmount = dist * 1.5 + (selectedVehicleExtra || 0);
+        let success = false;
+        if (currentRoundTrip && currentReturnDateTime) {
+            success = await createRoundTripBookings(payment, totalAmount);
+        } else {
+            success = await sendSingleBooking(payment, totalAmount);
+        }
+        if (success) {
+            resetAll();
+            await loadUserBookings();
+        }
+    }
+
+    function resetAll() {
+        if (routeLayer) bookingMap.removeLayer(routeLayer);
+        currentRouteData = null; pickupCoord = null; dropoffCoord = null;
+        document.getElementById('pickupInput').value = '';
+        document.getElementById('dropoffInput').value = '';
+        document.getElementById('datetime').value = '';
+        document.getElementById('returnDatetime').value = '';
+        document.getElementById('roundtripCheckbox').checked = false;
+        document.getElementById('returnDateContainer').classList.remove('visible');
+        currentRoundTrip = false; currentReturnDateTime = "";
+        showPage(1);
+    }
+
+    function showPage(page) {
+        document.querySelectorAll('.carousel-page').forEach((pg,i) => pg.classList.toggle('active-page', i+1 === page));
+        document.querySelectorAll('.step-btn').forEach((btn,i) => {
+            btn.classList.toggle('active', i+1 === page);
+            if (i+1 < page) btn.classList.add('done'); else btn.classList.remove('done');
+        });
+        currentPage = page;
+        document.getElementById('prevBtn').disabled = (page === 1);
+        if (page === 5) updateTotalDisplay();
+    }
+    async function nextPage() {
+        if (currentPage === 1) { const ok = await calculateAndStoreRoute(); if (ok) showPage(2); }
+        else if (currentPage === 2) { if (currentRouteData) showPage(3); else showError(2,'Bereken eerst route'); }
+        else if (currentPage === 3) { if (selectedVehicle) showPage(4); else showError(3,'Kies een voertuig'); }
+        else if (currentPage === 4) { showPage(5); updateTotalDisplay(); }
+        else if (currentPage === 5) { await finalizeBooking(); }
+    }
+    function prevPage() { if (currentPage > 1) showPage(currentPage-1); }
+
+    // TABS
+    window.switchToTab = function(tabName) {
+        document.querySelectorAll('.tab-container').forEach(c => c.classList.add('hidden'));
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`${tabName}-container`).classList.remove('hidden');
+        document.querySelector(`.tab-btn[data-tab="${tabName}"]`).classList.add('active');
+        if (tabName === 'dashboard') renderDashboard();
+        if (tabName === 'profile') loadUserProfile();
+        if (tabName === 'payments') loadPaymentHistory();
+    };
+
+    async function loadPaymentHistory() {
+        const tbody = document.querySelector('#paymentsTable tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="6">Laden...</td></tr>';
+        try {
+            const { data, error } = await supabase
+                .from('payments')
+                .select('*, bookings(id, invoice_id)')
+                .eq('user_id', currentUser.id)
+                .eq('customer_id', currentUser.id)
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6">Geen betalingen gevonden</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.map(p => `
+                <tr>
+                    <td>${p.booking_id}</td>
+                    <td>${new Date(p.created_at).toLocaleDateString()}</td>
+                    <td>€ ${parseFloat(p.amount).toFixed(2)}</td>
+                    <td>${p.payment_method || 'card'}</td>
+                    <td><span class="status-badge" style="background:${p.status === 'succeeded' ? '#dcfce7' : '#fee2e2'}">${p.status}</span></td>
+                    <td>
+                        ${p.bookings?.invoice_id ? `<button class="btn-icon" onclick="window.open('${p.bookings.invoice_pdf_url || '#'}', '_blank')"><i class="fas fa-file-pdf"></i></button>` : '-'}
+                    </td>
+                </tr>
+            `).join('');
+        } catch (err) {
+            console.error('Payment history error:', err);
+            tbody.innerHTML = `<tr><td colspan="6">Fout: ${err.message}</td></tr>`;
+        }
+    }
+
+    function handlePaymentStatus() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const payment = urlParams.get('payment');
+        const bookingId = urlParams.get('id');
+        if (payment === 'success') {
+            alert(`Bedankt! Uw betaling voor booking ${bookingId} is succesvol ontvangen.`);
+            if (window.comms) window.comms.trigger('BOOKING_CONFIRMATION', bookingId, supabase);
+            switchToTab('payments');
+        } else if (payment === 'cancelled') {
+            alert(`De betaling voor booking ${bookingId} is geannuleerd.`);
+        }
+    }
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => switchToTab(btn.getAttribute('data-tab'))));
+    document.querySelectorAll('[data-nav]').forEach(link => link.addEventListener('click', (e) => {
+        const nav = e.currentTarget.getAttribute('data-nav');
+        if (nav === 'home' || nav === 'portal') switchToTab('new-booking');
+        if (nav === 'contact') alert('📧 info@fleetconnect.be | 📞 +32 470 12 34 56');
+    }));
+    document.getElementById('heroBookBtn')?.addEventListener('click', (e) => { e.preventDefault(); switchToTab('new-booking'); });
+
+    // INIT
+    function initMap() {
+        bookingMap = L.map('map').setView([50.85,4.35],13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(bookingMap);
+    }
+    function initVehicleSelection() {
+        document.querySelectorAll('.vehicle-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.vehicle-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                selectedVehicle = card.getAttribute('data-vehicle');
+                selectedVehicleExtra = parseInt(card.getAttribute('data-extraprice')) || 0;
+                updateTotalDisplay();
+            });
+        });
+        selectedVehicle = 'Standaard'; selectedVehicleExtra = 0;
+    }
+    document.getElementById('roundtripCheckbox').addEventListener('change', (e) => {
+        document.getElementById('returnDateContainer').classList.toggle('visible', e.target.checked);
+        if (currentRouteData) {
+            currentRoundTrip = e.target.checked;
+            let d = parseFloat(currentRouteData.distanceKm);
+            if (currentRoundTrip) d*=2;
+            document.getElementById('priceVal').innerHTML = (d * 1.5).toFixed(2);
+            updateTotalDisplay();
+        }
+    });
+    document.getElementById('nextBtn').onclick = nextPage;
+    document.getElementById('prevBtn').onclick = prevPage;
+    document.getElementById('finalConfirmBtn').onclick = finalizeBooking;
+
+    flatpickr("#datetime", { locale: "nl", enableTime: true, dateFormat: "d-m-Y H:i", time_24hr: true, minDate: "today" });
+    returnFlatpickr = flatpickr("#returnDatetime", { locale: "nl", enableTime: true, dateFormat: "d-m-Y H:i", time_24hr: true });
+
+    initMap();
+    initVehicleSelection();
+    initAutocomplete();
+    showPage(1);
+    loadUserProfile();
+    loadUserBookings();
+    switchToTab('new-booking');
+    handlePaymentStatus();
+</script>
+</body>
+</html>
